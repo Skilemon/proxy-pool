@@ -1,7 +1,7 @@
 {
-  "name": "ip-proxy-pool-manager",
+  "name": "proxy-pool",
   "version": "1.0.0",
-  "description": "IP代理池管理程序 - 基于Electron的桌面应用",
+  "description": "Proxy Pool",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
