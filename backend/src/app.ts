@@ -77,22 +77,18 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/validate', async (req: Request, res: Response) => {
-  try {
-    await schedulerService.runValidation();
-    res.json({ success: true, message: '验证任务已启动' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/validate', (req: Request, res: Response) => {
+  schedulerService.runValidation().catch((error) => {
+    console.error('验证任务执行失败:', error);
+  });
+  res.json({ success: true, message: '验证任务已启动' });
 });
 
-app.post('/api/fetch', async (req: Request, res: Response) => {
-  try {
-    await schedulerService.runFetch();
-    res.json({ success: true, message: '获取任务已启动' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/fetch', (req: Request, res: Response) => {
+  schedulerService.runFetch().catch((error) => {
+    console.error('获取任务执行失败:', error);
+  });
+  res.json({ success: true, message: '获取任务已启动' });
 });
 
 const publicPath = path.join(__dirname, '../public');
