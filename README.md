@@ -4,33 +4,48 @@
 
 ## 功能特性
 
-- ✅ 代理管理：添加、删除、导入、导出代理
-- ✅ 自动验证：定时验证代理可用性
-- ✅ 来源管理：从外部 URL 自动获取代理
-- ✅ 统计面板：实时查看代理统计信息
-- ✅ API 服务：提供 HTTP API 获取可用代理
-- ✅ 深色模式：支持浅色/深色主题切换
-- ✅ Docker 部署：一键部署，数据持久化
+- 代理管理：添加、删除、批量导入、导出代理
+- 自动验证：定时验证代理可用性，支持 HTTP/HTTPS/SOCKS4/SOCKS5
+- 来源管理：从外部 URL 自动获取代理
+- 统计面板：实时查看代理统计信息
+- API 服务：提供 HTTP API 获取可用代理（无需认证）
+- 身份验证：JWT 登录保护管理接口，默认密码 `admin`
+- 深色模式：支持浅色/深色主题切换
+- Docker 部署：多阶段构建，一键部署，数据持久化
 
 ## 技术栈
 
 **前端**
 - Vue 3 + TypeScript + Composition API
-- Pinia (状态管理)
-- Vue Router (路由)
-- Tailwind CSS (样式)
-- Axios (HTTP 客户端)
-- Vite (构建工具)
+- Pinia（状态管理）
+- Vue Router（路由）
+- Tailwind CSS（样式）
+- Axios（HTTP 客户端）
+- Vite（构建工具）
 
 **后端**
 - Express + TypeScript
-- SQLite3 (数据库)
-- node-cron (定时任务)
-- axios (代理验证)
+- SQLite3（数据库）
+- node-cron（定时任务）
+- jsonwebtoken（JWT 认证）
+- axios + socks-proxy-agent（代理验证）
 
 ## 快速开始
 
-### 使用 Docker (推荐)
+### 使用 Docker（推荐）
+
+**方式一：使用预构建镜像（推荐）**
+
+```bash
+docker run -d \
+  --name proxypool \
+  -p 8416:8416 \
+  -v $(pwd)/data:/app/data \
+  --restart unless-stopped \
+  ghcr.io/<your-username>/proxypool:latest
+```
+
+**方式二：使用 Docker Compose**
 
 ```bash
 # 1. 克隆项目
@@ -42,33 +57,31 @@ docker-compose up -d
 
 # 3. 访问
 # 前端界面: http://localhost:8416
-# API 文档: http://localhost:8416/api/stats
 # 获取代理: http://localhost:8416/api/getSingleProxy
 ```
 
-数据将持久化在 `./data/proxypool.db`
+数据将持久化在宿主机 `./data/proxypool.db`。
 
 ### 本地开发
 
 **安装依赖**
 
 ```bash
-# 安装所有依赖
 npm run install:all
 ```
 
 **启动开发服务器**
 
 ```bash
-# 终端 1: 启动后端
+# 终端 1：启动后端
 npm run dev:backend
 
-# 终端 2: 启动前端
+# 终端 2：启动前端
 npm run dev:frontend
 ```
 
-- 前端开发服务器: http://localhost:5173
-- 后端 API 服务器: http://localhost:8416
+- 前端开发服务器：http://localhost:5173
+- 后端 API 服务器：http://localhost:8416
 
 **构建生产版本**
 
@@ -87,25 +100,25 @@ ProxyPool/
 ├── frontend/                 # Vue 前端
 │   ├── src/
 │   │   ├── api/             # API 请求封装
-│   │   ├── components/      # 组件
-│   │   ├── views/           # 页面
-│   │   ├── stores/          # Pinia stores
+│   │   ├── components/      # 公共组件
+│   │   ├── views/           # 页面视图
+│   │   ├── stores/          # Pinia 状态
 │   │   ├── router/          # 路由配置
-│   │   ├── types/           # TypeScript 类型
-│   │   └── App.vue
+│   │   └── types/           # TypeScript 类型
 │   └── package.json
 ├── backend/                  # Node.js 后端
 │   ├── src/
 │   │   ├── controllers/     # 控制器
 │   │   ├── services/        # 业务逻辑
 │   │   ├── routes/          # 路由
-│   │   ├── middleware/      # 中间件
-│   │   ├── database/        # 数据库
+│   │   ├── middleware/      # 中间件（认证、日志、错误处理）
+│   │   ├── database/        # 数据库连接
 │   │   ├── utils/           # 工具函数
-│   │   └── app.ts
+│   │   └── app.ts           # 应用入口
 │   └── package.json
-├── data/                     # 数据目录
+├── data/                     # 数据持久化目录（Docker 挂载点）
 │   └── proxypool.db         # SQLite 数据库
+├── .github/workflows/       # CI/CD（GitHub Actions 构建推送镜像）
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
@@ -113,46 +126,88 @@ ProxyPool/
 
 ## API 接口
 
-### 管理 API
+> 管理 API 需要在请求头中携带 JWT Token：`Authorization: Bearer <token>`
+> 登录接口和 `getSingleProxy` 接口无需认证。
 
-**代理管理**
-- `GET /api/proxies` - 获取所有代理
-- `POST /api/proxies` - 添加单个代理
-- `POST /api/proxies/import` - 批量导入代理
-- `GET /api/proxies/export` - 导出代理
-- `DELETE /api/proxies` - 删除代理
+### 认证
 
-**来源管理**
-- `GET /api/sources` - 获取所有来源
-- `POST /api/sources` - 添加来源
-- `PUT /api/sources/:id` - 更新来源
-- `DELETE /api/sources/:id` - 删除来源
-- `POST /api/sources/:id/fetch` - 从指定来源获取
-- `POST /api/sources/fetch-all` - 从所有来源获取
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/auth/login` | 登录获取 Token（默认密码：`admin`） |
+| `POST` | `/api/auth/change-password` | 修改登录密码 |
 
-**统计信息**
-- `GET /api/stats` - 获取统计数据
+登录请求体：
 
-**设置管理**
-- `GET /api/settings` - 获取设置
-- `PUT /api/settings` - 更新设置
-
-**任务触发**
-- `POST /api/validate` - 立即验证所有代理
-- `POST /api/fetch` - 立即从所有来源获取代理
-
-### 对外 API
-
-**获取可用代理**
-```bash
-# 获取任意协议的可用代理
-curl http://localhost:8416/api/getSingleProxy
-
-# 获取指定协议的可用代理
-curl http://localhost:8416/api/getSingleProxy?protocol=http
+```json
+{ "password": "admin" }
 ```
 
-响应示例：
+登录响应：
+
+```json
+{
+  "success": true,
+  "data": { "token": "<JWT Token>" }
+}
+```
+
+Token 有效期为 24 小时。
+
+### 代理管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/proxies` | 获取所有代理 |
+| `POST` | `/api/proxies` | 添加单个代理 |
+| `POST` | `/api/proxies/batch` | 批量添加代理 |
+| `POST` | `/api/proxies/import` | 从文本批量导入代理 |
+| `GET` | `/api/proxies/export` | 导出代理为文本文件 |
+| `DELETE` | `/api/proxies/:id` | 删除单个代理 |
+| `DELETE` | `/api/proxies` | 批量删除代理 |
+
+### 来源管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/sources` | 获取所有来源 |
+| `POST` | `/api/sources` | 添加来源 |
+| `PUT` | `/api/sources/:id` | 更新来源 |
+| `DELETE` | `/api/sources/:id` | 删除来源 |
+| `POST` | `/api/sources/:id/fetch` | 从指定来源立即获取 |
+| `POST` | `/api/sources/fetch-all` | 从所有来源立即获取 |
+
+### 统计与设置
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/stats` | 获取统计数据 |
+| `GET` | `/api/settings` | 获取当前设置 |
+| `PUT` | `/api/settings` | 更新设置 |
+
+### 任务触发
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/validate` | 立即验证所有代理 |
+| `POST` | `/api/fetch` | 立即从所有来源获取代理 |
+
+### 对外 API（无需认证）
+
+```
+GET /api/getSingleProxy
+```
+
+从代理池中随机获取一条有效代理，支持按协议和响应延迟过滤。
+
+**请求参数**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `protocol` | string | 否 | 协议类型：`http`、`https`、`socks4`、`socks5`，不传则不限 |
+| `delay` | number | 否 | 最大响应延迟（毫秒），仅返回不超过该值的代理 |
+
+**响应示例**
+
 ```json
 {
   "success": true,
@@ -165,6 +220,34 @@ curl http://localhost:8416/api/getSingleProxy?protocol=http
   }
 }
 ```
+
+**调用示例**
+
+```bash
+# 随机获取一条代理
+curl http://localhost:8416/api/getSingleProxy
+
+# 获取 HTTP 协议代理
+curl http://localhost:8416/api/getSingleProxy?protocol=http
+
+# 获取延迟不超过 500ms 的 SOCKS5 代理
+curl "http://localhost:8416/api/getSingleProxy?protocol=socks5&delay=500"
+```
+
+```python
+import requests
+
+resp = requests.get('http://localhost:8416/api/getSingleProxy',
+                    params={'protocol': 'http', 'delay': 1000})
+data = resp.json()
+if data['success']:
+    proxy_url = data['data']['proxy']
+    proxies = {'http': proxy_url, 'https': proxy_url}
+    r = requests.get('https://example.com', proxies=proxies)
+    print(r.status_code)
+```
+
+> **速率限制**：所有 `/api` 接口每分钟最多请求 100 次。
 
 ## 环境变量
 
@@ -189,39 +272,50 @@ VALIDATION_TIMEOUT=5000
 # 验证并发数
 VALIDATION_CONCURRENCY=10
 
-# 测试 URL
-TEST_URL=http://www.gstatic.com/generate_204
+# 测试 URL（用于验证代理可用性）
+TEST_URL=https://cp.cloudflare.com/generate_204
+
+# JWT 密钥（生产环境请务必修改）
+JWT_SECRET=proxypool-secret-key
 ```
 
 ## 使用说明
 
-### 1. 添加代理
+### 1. 登录
 
-在"代理列表"页面点击"添加代理"，填写代理信息：
-- 协议：http/https/socks4/socks5
+首次访问 `http://localhost:8416` 会跳转到登录页，默认密码为 `admin`。
+建议登录后在「系统设置」页面及时修改密码。
+
+### 2. 添加代理
+
+在「代理列表」页面点击「添加代理」，填写：
+- 协议：`http` / `https` / `socks4` / `socks5`
 - 主机：IP 地址或域名
 - 端口：端口号
 - 用户名/密码：可选
 
-### 2. 批量导入
+### 3. 批量导入
 
-点击"导入代理"，每行一个代理，支持格式：
+点击「导入代理」，每行一个代理，支持格式：
+
 ```
 http://123.45.67.89:8080
 socks5://user:pass@123.45.67.89:1080
 ```
 
-### 3. 添加来源
+### 4. 添加来源
 
-在"来源管理"页面添加代理来源 URL，系统会定时从这些来源获取代理。
+在「来源管理」页面添加代理来源 URL，系统会按设定间隔自动从这些 URL 抓取代理列表。
 
-### 4. 系统设置
+### 5. 系统设置
 
-在"系统设置"页面配置：
-- 验证间隔：多久验证一次代理
-- 获取间隔：多久从来源获取一次代理
-- 验证超时：验证代理的超时时间
-- 验证并发数：同时验证多少个代理
+在「系统设置」页面可配置：
+- 验证间隔：多久自动验证一次代理（默认 30 分钟）
+- 获取间隔：多久从来源获取一次代理（默认 60 分钟）
+- 验证超时：单个代理验证超时时间（默认 5000ms）
+- 验证并发数：同时验证的代理数量（默认 10）
+- 测试 URL：用于验证代理可用性的目标地址
+- 管理密码：修改登录密码
 
 ## Docker 部署
 
@@ -240,6 +334,7 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -e VALIDATION_INTERVAL=30 \
   -e FETCH_INTERVAL=60 \
+  -e JWT_SECRET=your-secret-key \
   proxypool:latest
 ```
 
@@ -259,9 +354,13 @@ docker-compose down
 docker-compose restart
 ```
 
+### 自动构建镜像
+
+本项目通过 GitHub Actions 自动构建并推送多平台镜像（`linux/amd64`、`linux/arm64`）到 GitHub Container Registry（GHCR）。
+
 ## 数据备份
 
-数据库文件位于 `./data/proxypool.db`，定期备份此文件即可。
+数据库文件位于宿主机 `./data/proxypool.db`，定期备份此文件即可。
 
 ```bash
 # 备份
