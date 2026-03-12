@@ -79,6 +79,7 @@ export async function initDatabase(): Promise<void> {
       name TEXT NOT NULL,
       url TEXT NOT NULL,
       enabled INTEGER DEFAULT 1,
+      isDefault INTEGER DEFAULT 0,
       lastFetched TEXT,
       createdAt TEXT NOT NULL
     );
@@ -93,6 +94,13 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_sources_enabled ON sources(enabled);
   `);
 
+  // 迁移：为旧数据库的 sources 表添加 isDefault 字段
+  try {
+    await database.exec(`ALTER TABLE sources ADD COLUMN isDefault INTEGER DEFAULT 0`);
+  } catch {
+    // 字段已存在，忽略
+  }
+
   await initDefaultSettings(database);
   await initDefaultSources(database);
 }
@@ -102,13 +110,17 @@ async function initDefaultSources(database: AsyncDatabase): Promise<void> {
   if (!existing) {
     const { randomUUID } = await import('node:crypto');
     await database.run(
-      'INSERT INTO sources (id, name, url, enabled, createdAt) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
       randomUUID(),
       '皮卡丘',
       'https://charlespikachu.github.io/freeproxy/proxies.json',
       1,
+      1,
       new Date().toISOString()
     );
+  } else {
+    // 迁移：确保旧记录的 isDefault 字段已设置
+    await database.run('UPDATE sources SET isDefault = 1 WHERE url = ?', 'https://charlespikachu.github.io/freeproxy/proxies.json');
   }
 }
 

@@ -17,6 +17,7 @@ export interface ProxySource {
   name: string;
   url: string;
   enabled: boolean;
+  isDefault: boolean;
   lastFetched?: string;
   createdAt: string;
 }

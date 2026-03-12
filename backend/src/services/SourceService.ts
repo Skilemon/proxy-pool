@@ -10,15 +10,20 @@ export class SourceService {
       throw new Error('无效的 URL');
     }
 
+    const duplicate = await db.get('SELECT id FROM sources WHERE url = ?', source.url);
+    if (duplicate) {
+      throw new Error('该 URL 已存在，请勿重复添加');
+    }
+
     const id = generateId();
     const createdAt = new Date().toISOString();
 
     await db.run(
-      'INSERT INTO sources (id, name, url, enabled, createdAt) VALUES (?, ?, ?, ?, ?)',
-      [id, source.name, source.url, source.enabled ? 1 : 0, createdAt]
+      'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, source.name, source.url, source.enabled ? 1 : 0, 0, createdAt]
     );
 
-    return { ...source, id, createdAt };
+    return { ...source, id, isDefault: false, createdAt };
   }
 
   async getAllSources(): Promise<ProxySource[]> {
@@ -26,7 +31,8 @@ export class SourceService {
     const rows = await db.all('SELECT * FROM sources ORDER BY createdAt DESC');
     return rows.map(row => ({
       ...row,
-      enabled: Boolean(row.enabled)
+      enabled: Boolean(row.enabled),
+      isDefault: Boolean(row.isDefault)
     }));
   }
 
@@ -34,7 +40,7 @@ export class SourceService {
     const db = getDatabase();
     const row = await db.get('SELECT * FROM sources WHERE id = ?', id);
     if (!row) return null;
-    return { ...row, enabled: Boolean(row.enabled) };
+    return { ...row, enabled: Boolean(row.enabled), isDefault: Boolean(row.isDefault) };
   }
 
   async updateSource(id: string, updates: Partial<Omit<ProxySource, 'id' | 'createdAt'>>): Promise<void> {
@@ -70,8 +76,8 @@ export class SourceService {
 
   async deleteSource(id: string): Promise<void> {
     const db = getDatabase();
-    const row = await db.get('SELECT url FROM sources WHERE id = ?', id);
-    if (row && row.url === 'https://charlespikachu.github.io/freeproxy/proxies.json') {
+    const row = await db.get('SELECT isDefault FROM sources WHERE id = ?', id);
+    if (row && row.isDefault) {
       throw new Error('默认来源不允许删除');
     }
     await db.run('DELETE FROM sources WHERE id = ?', id);
@@ -82,7 +88,8 @@ export class SourceService {
     const rows = await db.all('SELECT * FROM sources WHERE enabled = 1');
     return rows.map(row => ({
       ...row,
-      enabled: Boolean(row.enabled)
+      enabled: Boolean(row.enabled),
+      isDefault: Boolean(row.isDefault)
     }));
   }
 }

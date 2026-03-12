@@ -57,9 +57,9 @@
                   </button>
                   <button
                     @click="handleDelete(source.id)"
-                    :disabled="source.url === 'https://charlespikachu.github.io/freeproxy/proxies.json'"
+                    :disabled="source.isDefault"
                     class="px-3 py-1 rounded text-sm text-white"
-                    :class="source.url === 'https://charlespikachu.github.io/freeproxy/proxies.json' ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
+                    :class="source.isDefault ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
                   >
                     删除
                   </button>
