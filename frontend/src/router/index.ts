@@ -4,6 +4,12 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'Login',
+      component: () => import('@/views/Login.vue'),
+      meta: { public: true }
+    },
+    {
       path: '/',
       redirect: '/dashboard'
     },
@@ -33,6 +39,16 @@ const router = createRouter({
       component: () => import('@/views/Help.vue')
     }
   ]
+});
+
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token');
+  if (!to.meta.public && !token) {
+    return { name: 'Login' };
+  }
+  if (to.name === 'Login' && token) {
+    return { name: 'Dashboard' };
+  }
 });
 
 export default router;

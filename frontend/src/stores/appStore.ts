@@ -4,6 +4,7 @@ import { ref } from 'vue';
 export const useAppStore = defineStore('app', () => {
   const darkMode = ref(false);
   const toast = ref<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const token = ref<string | null>(localStorage.getItem('token'));
 
   function toggleDarkMode() {
     darkMode.value = !darkMode.value;
@@ -21,10 +22,28 @@ export const useAppStore = defineStore('app', () => {
     }, 3000);
   }
 
+  function setToken(newToken: string) {
+    token.value = newToken;
+    localStorage.setItem('token', newToken);
+  }
+
+  function clearToken() {
+    token.value = null;
+    localStorage.removeItem('token');
+  }
+
+  function isLoggedIn() {
+    return !!token.value;
+  }
+
   return {
     darkMode,
     toast,
+    token,
     toggleDarkMode,
-    showToast
+    showToast,
+    setToken,
+    clearToken,
+    isLoggedIn
   };
 });

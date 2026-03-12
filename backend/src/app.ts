@@ -16,9 +16,11 @@ import { createProxyRoutes } from './routes/proxyRoutes';
 import { createSourceRoutes } from './routes/sourceRoutes';
 import { createStatsRoutes } from './routes/statsRoutes';
 import { createSettingsRoutes } from './routes/settingsRoutes';
+import { createAuthRoutes } from './routes/authRoutes';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
+import { authMiddleware } from './middleware/auth';
 
 dotenv.config();
 
@@ -45,10 +47,12 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
-app.use('/api/proxies', createProxyRoutes(proxyService));
-app.use('/api/sources', createSourceRoutes(sourceService, fetcherService));
-app.use('/api/stats', createStatsRoutes(proxyService));
-app.use('/api/settings', createSettingsRoutes(settingsService, schedulerService, validatorService));
+app.use('/api/auth', createAuthRoutes(settingsService));
+
+app.use('/api/proxies', authMiddleware, createProxyRoutes(proxyService));
+app.use('/api/sources', authMiddleware, createSourceRoutes(sourceService, fetcherService));
+app.use('/api/stats', authMiddleware, createStatsRoutes(proxyService));
+app.use('/api/settings', authMiddleware, createSettingsRoutes(settingsService, schedulerService, validatorService));
 
 app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   try {
@@ -78,14 +82,14 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/validate', (req: Request, res: Response) => {
+app.post('/api/validate', authMiddleware, (req: Request, res: Response) => {
   schedulerService.runValidation().catch((error) => {
     console.error('验证任务执行失败:', error);
   });
   res.json({ success: true, message: '验证任务已启动' });
 });
 
-app.post('/api/fetch', (req: Request, res: Response) => {
+app.post('/api/fetch', authMiddleware, (req: Request, res: Response) => {
   schedulerService.runFetch().catch((error) => {
     console.error('获取任务执行失败:', error);
   });
