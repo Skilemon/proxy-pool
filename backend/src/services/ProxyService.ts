@@ -69,7 +69,7 @@ export class ProxyService {
     return { ...row, isValid: Boolean(row.isValid) };
   }
 
-  async getValidProxy(protocol?: string): Promise<ProxyEntry | null> {
+  async getValidProxy(protocol?: string, maxResponseTime?: number): Promise<ProxyEntry | null> {
     const db = getDatabase();
     let query = 'SELECT * FROM proxies WHERE isValid = 1';
     const params: any[] = [];
@@ -77,6 +77,11 @@ export class ProxyService {
     if (protocol) {
       query += ' AND protocol = ?';
       params.push(protocol);
+    }
+
+    if (maxResponseTime !== undefined) {
+      query += ' AND responseTime <= ?';
+      params.push(maxResponseTime);
     }
 
     query += ' ORDER BY RANDOM() LIMIT 1';

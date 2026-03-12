@@ -53,7 +53,8 @@ app.use('/api/settings', createSettingsRoutes(settingsService, schedulerService,
 app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   try {
     const protocol = req.query.protocol as string | undefined;
-    const proxy = await proxyService.getValidProxy(protocol);
+    const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
+    const proxy = await proxyService.getValidProxy(protocol, maxResponseTime);
 
     if (!proxy) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
