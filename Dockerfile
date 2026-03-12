@@ -1,5 +1,5 @@
 # Stage 1: 构建前端
-FROM node:18-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: 构建后端
-FROM node:18-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
@@ -15,7 +15,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Stage 3: 生产环境
-FROM node:18-alpine
+FROM node:22-alpine
 WORKDIR /app
 
 # 复制后端构建产物和依赖
