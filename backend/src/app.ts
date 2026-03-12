@@ -83,6 +83,9 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
 });
 
 app.post('/api/validate', authMiddleware, (req: Request, res: Response) => {
+  if (!schedulerService.tryLockValidation()) {
+    return res.json({ success: false, message: '验证任务已在运行中' });
+  }
   schedulerService.runValidation().catch((error) => {
     console.error('验证任务执行失败:', error);
   });
@@ -90,6 +93,9 @@ app.post('/api/validate', authMiddleware, (req: Request, res: Response) => {
 });
 
 app.post('/api/fetch', authMiddleware, (req: Request, res: Response) => {
+  if (!schedulerService.tryLockFetch()) {
+    return res.json({ success: false, message: '获取任务已在运行中' });
+  }
   schedulerService.runFetch().catch((error) => {
     console.error('获取任务执行失败:', error);
   });

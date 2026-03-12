@@ -13,6 +13,9 @@ export class SchedulerService {
   private validationTask: cron.ScheduledTask | null = null;
   private fetchTask: cron.ScheduledTask | null = null;
 
+  public isValidating = false;
+  public isFetching = false;
+
   constructor(
     proxyService: ProxyService,
     validatorService: ValidatorService,
@@ -63,9 +66,13 @@ export class SchedulerService {
 
     const cronExpression = `*/${intervalMinutes} * * * *`;
 
-    this.validationTask = cron.schedule(cronExpression, async () => {
+    this.validationTask = cron.schedule(cronExpression, () => {
       console.log('开始定时验证代理...');
-      await this.runValidation();
+      if (!this.tryLockValidation()) {
+        console.log('验证任务已在运行中，跳过本次定时触发');
+        return;
+      }
+      this.runValidation().catch((error) => console.error('定时验证失败:', error));
     });
 
     console.log(`验证调度已设置: 每 ${intervalMinutes} 分钟`);
@@ -78,12 +85,22 @@ export class SchedulerService {
 
     const cronExpression = `*/${intervalMinutes} * * * *`;
 
-    this.fetchTask = cron.schedule(cronExpression, async () => {
+    this.fetchTask = cron.schedule(cronExpression, () => {
       console.log('开始定时获取代理...');
-      await this.runFetch();
+      if (!this.tryLockFetch()) {
+        console.log('获取任务已在运行中，跳过本次定时触发');
+        return;
+      }
+      this.runFetch().catch((error) => console.error('定时获取失败:', error));
     });
 
     console.log(`获取调度已设置: 每 ${intervalMinutes} 分钟`);
+  }
+
+  tryLockValidation(): boolean {
+    if (this.isValidating) return false;
+    this.isValidating = true;
+    return true;
   }
 
   async runValidation(): Promise<void> {
@@ -106,7 +123,15 @@ export class SchedulerService {
       console.log(`验证完成: ${validCount}/${proxies.length} 个代理有效`);
     } catch (error) {
       console.error('验证失败:', error);
+    } finally {
+      this.isValidating = false;
     }
+  }
+
+  tryLockFetch(): boolean {
+    if (this.isFetching) return false;
+    this.isFetching = true;
+    return true;
   }
 
   async runFetch(): Promise<void> {
@@ -115,6 +140,8 @@ export class SchedulerService {
       console.log(`获取完成: 从 ${result.total} 个来源添加了 ${result.added} 个代理，跳过 ${result.duplicates} 个重复`);
     } catch (error) {
       console.error('获取失败:', error);
+    } finally {
+      this.isFetching = false;
     }
   }
 }
