@@ -25,6 +25,8 @@ COPY --from=backend-builder /app/backend/dist ./dist
 COPY --from=backend-builder /app/backend/package*.json ./
 # 复制workspace根目录依赖
 COPY --from=backend-builder /app/node_modules ./node_modules
+# 复制后端自身依赖
+COPY --from=backend-builder /app/backend/node_modules ./node_modules
 
 # 复制前端构建产物到 public 目录
 COPY --from=frontend-builder /app/frontend/dist ./public
