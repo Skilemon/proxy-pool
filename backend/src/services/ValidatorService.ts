@@ -1,4 +1,5 @@
 import axios, { AxiosProxyConfig } from 'axios';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import { ProxyEntry, ValidationResult } from '../types';
 import { formatProxyUrl } from '../utils';
 
@@ -15,24 +16,37 @@ export class ValidatorService {
     const startTime = Date.now();
 
     try {
-      const proxyConfig: AxiosProxyConfig = {
-        protocol: proxy.protocol as any,
-        host: proxy.host,
-        port: proxy.port
+      const isSocks = proxy.protocol === 'socks4' || proxy.protocol === 'socks5';
+      let requestConfig: any = {
+        timeout: this.timeout,
+        validateStatus: (status: number) => status === 204 || status === 200
       };
 
-      if (proxy.username && proxy.password) {
-        proxyConfig.auth = {
-          username: proxy.username,
-          password: proxy.password
+      if (isSocks) {
+        const auth = proxy.username && proxy.password
+          ? `${proxy.username}:${proxy.password}@`
+          : '';
+        const proxyUrl = `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`;
+        const agent = new SocksProxyAgent(proxyUrl);
+        requestConfig.httpAgent = agent;
+        requestConfig.httpsAgent = agent;
+        requestConfig.proxy = false;
+      } else {
+        const proxyConfig: AxiosProxyConfig = {
+          protocol: proxy.protocol as any,
+          host: proxy.host,
+          port: proxy.port
         };
+        if (proxy.username && proxy.password) {
+          proxyConfig.auth = {
+            username: proxy.username,
+            password: proxy.password
+          };
+        }
+        requestConfig.proxy = proxyConfig;
       }
 
-      await axios.get(this.testUrl, {
-        proxy: proxyConfig,
-        timeout: this.timeout,
-        validateStatus: (status) => status === 204 || status === 200
-      });
+      await axios.get(this.testUrl, requestConfig);
 
       const responseTime = Date.now() - startTime;
 
