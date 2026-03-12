@@ -55,7 +55,7 @@ export class ValidatorService {
     }
   }
 
-  async validateProxies(proxies: ProxyEntry[], concurrency: number = 10): Promise<ValidationResult[]> {
+  async validateProxies(proxies: ProxyEntry[], concurrency: number = 10, onResult?: (result: ValidationResult) => Promise<void>): Promise<ValidationResult[]> {
     const results: ValidationResult[] = [];
     const queue = [...proxies];
 
@@ -65,6 +65,7 @@ export class ValidatorService {
         if (proxy) {
           const result = await this.validateProxy(proxy);
           results.push(result);
+          if (onResult) await onResult(result);
         }
       }
     });

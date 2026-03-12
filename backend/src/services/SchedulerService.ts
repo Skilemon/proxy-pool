@@ -95,14 +95,15 @@ export class SchedulerService {
       }
 
       const settings = await this.settingsService.getSettings();
-      const results = await this.validatorService.validateProxies(proxies, settings.validationConcurrency);
-
-      for (const result of results) {
+      let validCount = 0;
+      const onResult = async (result: Awaited<ReturnType<typeof this.validatorService.validateProxy>>) => {
         await this.proxyService.updateProxyValidation(result.proxyId, result.isValid, result.responseTime);
-      }
+        if (result.isValid) validCount++;
+      };
 
-      const validCount = results.filter(r => r.isValid).length;
-      console.log(`验证完成: ${validCount}/${results.length} 个代理有效`);
+      await this.validatorService.validateProxies(proxies, settings.validationConcurrency, onResult);
+
+      console.log(`验证完成: ${validCount}/${proxies.length} 个代理有效`);
     } catch (error) {
       console.error('验证失败:', error);
     }
