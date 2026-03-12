@@ -50,13 +50,35 @@
         </div>
       </div>
 
-      <div class="mb-4 flex gap-4 items-center">
-        <label class="text-sm text-slate-600 dark:text-slate-400">状态筛选:</label>
-        <select v-model="statusFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
-          <option value="all">全部</option>
-          <option value="valid">有效</option>
-          <option value="invalid">无效</option>
-        </select>
+      <div class="mb-4 flex flex-wrap gap-4 items-center">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-slate-600 dark:text-slate-400">协议:</label>
+          <select v-model="protocolFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+            <option value="all">全部</option>
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+            <option value="socks4">SOCKS4</option>
+            <option value="socks5">SOCKS5</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-slate-600 dark:text-slate-400">可用性:</label>
+          <select v-model="statusFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+            <option value="all">全部</option>
+            <option value="valid">有效</option>
+            <option value="invalid">无效</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-slate-600 dark:text-slate-400">响应时间:</label>
+          <select v-model="responseTimeFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+            <option value="all">全部</option>
+            <option value="500">500ms 以内</option>
+            <option value="1000">1000ms 以内</option>
+            <option value="2000">2000ms 以内</option>
+            <option value="5000">5000ms 以内</option>
+          </select>
+        </div>
         <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">
           共 {{ filteredProxies.length }} 条
         </span>
@@ -175,6 +197,8 @@ const showAddForm = ref(false);
 const showImportForm = ref(false);
 const importContent = ref('');
 const statusFilter = ref<'all' | 'valid' | 'invalid'>('all');
+const protocolFilter = ref<'all' | 'http' | 'https' | 'socks4' | 'socks5'>('all');
+const responseTimeFilter = ref<'all' | '500' | '1000' | '2000' | '5000'>('all');
 const currentPage = ref(1);
 const pageSize = ref(20);
 
@@ -189,10 +213,16 @@ const newProxy = ref({
 });
 
 const filteredProxies = computed(() => {
-  if (statusFilter.value === 'all') return proxyStore.proxies;
-  return proxyStore.proxies.filter(proxy =>
-    statusFilter.value === 'valid' ? proxy.isValid : !proxy.isValid
-  );
+  return proxyStore.proxies.filter(proxy => {
+    if (protocolFilter.value !== 'all' && proxy.protocol !== protocolFilter.value) return false;
+    if (statusFilter.value === 'valid' && !proxy.isValid) return false;
+    if (statusFilter.value === 'invalid' && proxy.isValid) return false;
+    if (responseTimeFilter.value !== 'all') {
+      const limit = parseInt(responseTimeFilter.value);
+      if (!proxy.responseTime || proxy.responseTime > limit) return false;
+    }
+    return true;
+  });
 });
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / pageSize.value)));
@@ -214,7 +244,7 @@ const visiblePages = computed(() => {
 });
 
 // 筛选条件或每页条数变化时重置到第一页
-watch([statusFilter, pageSize], () => {
+watch([statusFilter, protocolFilter, responseTimeFilter, pageSize], () => {
   currentPage.value = 1;
 });
 
