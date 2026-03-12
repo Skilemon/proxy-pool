@@ -42,7 +42,7 @@ docker run -d \
   -p 8416:8416 \
   -v $(pwd)/data:/app/data \
   --restart unless-stopped \
-  ghcr.io/<your-username>/proxypool:latest
+  ghcr.io/skilemon/proxypool:latest
 ```
 
 **方式二：使用 Docker Compose**
