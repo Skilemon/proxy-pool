@@ -9,7 +9,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fetchInterval: 60,
     validationTimeout: 5000,
     validationConcurrency: 10,
-    testUrl: 'http://www.gstatic.com/generate_204'
+    testUrl: ''
   });
 
   async function fetchSettings() {

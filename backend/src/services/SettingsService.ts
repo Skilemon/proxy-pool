@@ -16,7 +16,7 @@ export class SettingsService {
       fetchInterval: parseInt(settings.fetchInterval || '60', 10),
       validationTimeout: parseInt(settings.validationTimeout || '5000', 10),
       validationConcurrency: parseInt(settings.validationConcurrency || '10', 10),
-      testUrl: settings.testUrl || 'http://www.gstatic.com/generate_204'
+      testUrl: settings.testUrl || 'https://cp.cloudflare.com/generate_204'
     };
   }
 

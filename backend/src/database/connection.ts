@@ -102,7 +102,7 @@ async function initDefaultSettings(database: AsyncDatabase): Promise<void> {
     fetchInterval: '60',
     validationTimeout: '5000',
     validationConcurrency: '10',
-    testUrl: 'http://www.gstatic.com/generate_204'
+    testUrl: 'https://cp.cloudflare.com/generate_204'
   };
 
   for (const [key, value] of Object.entries(defaults)) {
