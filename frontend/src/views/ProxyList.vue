@@ -57,6 +57,9 @@
           <option value="valid">有效</option>
           <option value="invalid">无效</option>
         </select>
+        <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">
+          共 {{ filteredProxies.length }} 条
+        </span>
       </div>
 
       <div class="overflow-x-auto">
@@ -79,7 +82,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="proxy in filteredProxies" :key="proxy.id" class="border-b border-slate-200 dark:border-slate-700">
+            <tr v-for="proxy in paginatedProxies" :key="proxy.id" class="border-b border-slate-200 dark:border-slate-700">
               <td class="p-3">
                 <input
                   type="checkbox"
@@ -108,12 +111,60 @@
           暂无代理数据
         </div>
       </div>
+
+      <!-- 分页控件 -->
+      <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <span>每页</span>
+          <select v-model="pageSize" class="px-2 py-1 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+          <span>条</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button
+            @click="currentPage = 1"
+            :disabled="currentPage === 1"
+            class="px-2 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
+          >«</button>
+          <button
+            @click="currentPage--"
+            :disabled="currentPage === 1"
+            class="px-3 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
+          >‹</button>
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            @click="currentPage = page"
+            class="px-3 py-1 rounded border text-sm"
+            :class="page === currentPage
+              ? 'bg-blue-500 text-white border-blue-500'
+              : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'"
+          >{{ page }}</button>
+          <button
+            @click="currentPage++"
+            :disabled="currentPage === totalPages"
+            class="px-3 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
+          >›</button>
+          <button
+            @click="currentPage = totalPages"
+            :disabled="currentPage === totalPages"
+            class="px-2 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
+          >»</button>
+        </div>
+        <span class="text-sm text-slate-600 dark:text-slate-400">
+          第 {{ currentPage }} / {{ totalPages }} 页
+        </span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useProxyStore } from '@/stores/proxyStore';
 import { useAppStore } from '@/stores/appStore';
 
@@ -124,6 +175,8 @@ const showAddForm = ref(false);
 const showImportForm = ref(false);
 const importContent = ref('');
 const statusFilter = ref<'all' | 'valid' | 'invalid'>('all');
+const currentPage = ref(1);
+const pageSize = ref(20);
 
 const newProxy = ref({
   protocol: 'http' as 'http' | 'https' | 'socks4' | 'socks5',
@@ -142,16 +195,44 @@ const filteredProxies = computed(() => {
   );
 });
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / pageSize.value)));
+
+const paginatedProxies = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredProxies.value.slice(start, start + pageSize.value);
+});
+
+const visiblePages = computed(() => {
+  const pages: number[] = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+  let start = Math.max(1, current - 2);
+  let end = Math.min(total, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+  for (let i = start; i <= end; i++) pages.push(i);
+  return pages;
+});
+
+// 筛选条件或每页条数变化时重置到第一页
+watch([statusFilter, pageSize], () => {
+  currentPage.value = 1;
+});
+
 const isAllSelected = computed(() => {
-  return filteredProxies.value.length > 0 &&
-    filteredProxies.value.every(proxy => proxyStore.selectedIds.includes(proxy.id));
+  return paginatedProxies.value.length > 0 &&
+    paginatedProxies.value.every(proxy => proxyStore.selectedIds.includes(proxy.id));
 });
 
 function toggleSelectAll() {
   if (isAllSelected.value) {
-    proxyStore.clearSelection();
+    const pageIds = paginatedProxies.value.map(p => p.id);
+    pageIds.forEach(id => {
+      if (proxyStore.selectedIds.includes(id)) proxyStore.toggleSelection(id);
+    });
   } else {
-    proxyStore.selectAll();
+    paginatedProxies.value.forEach(proxy => {
+      if (!proxyStore.selectedIds.includes(proxy.id)) proxyStore.toggleSelection(proxy.id);
+    });
   }
 }
 
@@ -218,6 +299,10 @@ async function handleDeleteSelected() {
   try {
     await proxyStore.deleteProxies(proxyStore.selectedIds);
     appStore.showToast('删除成功', 'success');
+    // 删除后若当前页超出范围则回退
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }
