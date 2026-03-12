@@ -59,32 +59,45 @@ export class FetcherService {
     };
   }
 
-  private parseProxies(data: any): Array<{ protocol: 'http' | 'https' | 'socks4' | 'socks5'; host: string; port: number; username?: string; password?: string; isValid: boolean }> {
+  private parseProxies(data: any): Array<{ protocol: 'http' | 'https' | 'socks4' | 'socks5'; host: string; port: number; username?: string; password?: string; country?: string; isValid: boolean }> {
     const proxies: Array<any> = [];
 
-    if (typeof data === 'string') {
-      const lines = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line);
+    // 支持 { data: [...] } 包装格式（如皮卡丘源）
+    const list = (typeof data === 'object' && data !== null && Array.isArray(data.data))
+      ? data.data
+      : data;
 
+    if (typeof list === 'string') {
+      const lines = list.split('\n').map((line: string) => line.trim()).filter((line: string) => line);
       for (const line of lines) {
         const parsed = parseProxyUrl(line);
         if (parsed) {
           proxies.push({ ...parsed, isValid: false });
         }
       }
-    } else if (Array.isArray(data)) {
-      for (const item of data) {
+    } else if (Array.isArray(list)) {
+      for (const item of list) {
         if (typeof item === 'string') {
           const parsed = parseProxyUrl(item);
           if (parsed) {
             proxies.push({ ...parsed, isValid: false });
           }
-        } else if (typeof item === 'object' && item.host && item.port) {
+        } else if (typeof item === 'object' && item !== null) {
+          // 兼容 host/ip 字段，protocol 兼容大小写
+          const host = item.host || item.ip;
+          const port = item.port;
+          if (!host || !port) continue;
+          const rawProtocol = (item.protocol || 'http').toString().toLowerCase();
+          const protocol = (['http', 'https', 'socks4', 'socks5'].includes(rawProtocol)
+            ? rawProtocol
+            : 'http') as 'http' | 'https' | 'socks4' | 'socks5';
           proxies.push({
-            protocol: item.protocol || 'http',
-            host: item.host,
-            port: item.port,
+            protocol,
+            host,
+            port: Number(port),
             username: item.username,
             password: item.password,
+            country: item.country,
             isValid: false
           });
         }

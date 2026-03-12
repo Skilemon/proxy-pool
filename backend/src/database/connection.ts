@@ -94,6 +94,22 @@ export async function initDatabase(): Promise<void> {
   `);
 
   await initDefaultSettings(database);
+  await initDefaultSources(database);
+}
+
+async function initDefaultSources(database: AsyncDatabase): Promise<void> {
+  const existing = await database.get('SELECT id FROM sources WHERE url = ?', 'https://charlespikachu.github.io/freeproxy/proxies.json');
+  if (!existing) {
+    const { randomUUID } = await import('node:crypto');
+    await database.run(
+      'INSERT INTO sources (id, name, url, enabled, createdAt) VALUES (?, ?, ?, ?, ?)',
+      randomUUID(),
+      '皮卡丘',
+      'https://charlespikachu.github.io/freeproxy/proxies.json',
+      1,
+      new Date().toISOString()
+    );
+  }
 }
 
 async function initDefaultSettings(database: AsyncDatabase): Promise<void> {
