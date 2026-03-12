@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  proxypool:
+    build: .
+    container_name: proxypool
+    ports:
+      - "8416:8416"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=8416
+      - DB_PATH=/app/data/proxypool.db
+      - VALIDATION_INTERVAL=30
+      - FETCH_INTERVAL=60
+      - VALIDATION_TIMEOUT=5000
+      - VALIDATION_CONCURRENCY=10
+      - TEST_URL=http://www.gstatic.com/generate_204
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8416/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
