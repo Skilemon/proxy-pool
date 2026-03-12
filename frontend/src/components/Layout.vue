@@ -48,6 +48,7 @@ const navItems = [
   { path: '/dashboard', label: '仪表盘' },
   { path: '/proxies', label: '代理列表' },
   { path: '/sources', label: '来源管理' },
-  { path: '/settings', label: '系统设置' }
+  { path: '/settings', label: '系统设置' },
+  { path: '/help', label: '使用帮助' }
 ];
 </script>
