@@ -36,6 +36,8 @@ export class ValidatorService {
 
       const responseTime = Date.now() - startTime;
 
+      console.log(`[验证] ✓ ${formatProxyUrl(proxy)} 有效 (${responseTime}ms)`);
+
       return {
         proxyId: proxy.id,
         isValid: true,
@@ -43,6 +45,8 @@ export class ValidatorService {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
+      console.log(`[验证] ✗ ${formatProxyUrl(proxy)} 无效`);
+
       return {
         proxyId: proxy.id,
         isValid: false,
