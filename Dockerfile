@@ -1,7 +1,7 @@
 # Stage 1: 构建前端
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
-COPY package-lock.json ./
+COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 RUN npm ci --workspace frontend
 COPY frontend/ ./frontend/
@@ -10,7 +10,7 @@ RUN npm run build --workspace frontend
 # Stage 2: 构建后端
 FROM node:22-alpine AS backend-builder
 WORKDIR /app
-COPY package-lock.json ./
+COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 RUN npm ci --workspace backend
 COPY backend/ ./backend/
