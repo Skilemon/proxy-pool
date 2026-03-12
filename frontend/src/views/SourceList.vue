@@ -89,7 +89,8 @@ const showAddForm = ref(false);
 const newSource = ref({
   name: '',
   url: '',
-  enabled: true
+  enabled: true,
+  isDefault: false
 });
 
 async function handleAddSource() {
@@ -101,7 +102,7 @@ async function handleAddSource() {
   try {
     await sourceStore.addSource(newSource.value);
     appStore.showToast('添加成功', 'success');
-    newSource.value = { name: '', url: '', enabled: true };
+    newSource.value = { name: '', url: '', enabled: true, isDefault: false };
     showAddForm.value = false;
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
