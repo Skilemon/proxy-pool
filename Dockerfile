@@ -1,30 +1,27 @@
 # Stage 1: 构建前端
 FROM node:22-alpine AS frontend-builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY frontend/package.json ./frontend/
-RUN npm ci --workspace frontend
-COPY frontend/ ./frontend/
-RUN npm run build --workspace frontend
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
 # Stage 2: 构建后端
 FROM node:22-alpine AS backend-builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY backend/package.json ./backend/
-RUN npm ci --workspace backend
-COPY backend/ ./backend/
-RUN npm run build --workspace backend
+WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json* ./
+RUN npm install
+COPY backend/ ./
+RUN npm run build
 
 # Stage 3: 生产环境
 FROM node:22-alpine
 WORKDIR /app
 
-# 复制后端构建产物
+# 复制后端构建产物和依赖
 COPY --from=backend-builder /app/backend/dist ./dist
 COPY --from=backend-builder /app/backend/package*.json ./
-# 复制workspace根目录依赖
-COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=backend-builder /app/backend/node_modules ./node_modules
 
 # 复制前端构建产物到 public 目录
 COPY --from=frontend-builder /app/frontend/dist ./public
