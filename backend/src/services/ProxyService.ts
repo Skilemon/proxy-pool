@@ -79,7 +79,7 @@ export class ProxyService {
       params.push(protocol);
     }
 
-    query += ' ORDER BY responseTime ASC LIMIT 1';
+    query += ' ORDER BY RANDOM() LIMIT 1';
 
     const row = await db.get(query, params);
     if (!row) return null;
