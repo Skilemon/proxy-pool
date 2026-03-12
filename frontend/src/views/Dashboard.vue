@@ -1,7 +1,16 @@
 <template>
   <div class="space-y-6">
     <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-      <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">统计概览</h2>
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">统计概览</h2>
+        <button
+          @click="refreshStats"
+          :disabled="loading"
+          class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ loading ? '刷新中...' : '刷新统计' }}
+        </button>
+      </div>
 
       <div v-if="loading" class="text-center py-8 text-slate-500">加载中...</div>
 
@@ -45,32 +54,6 @@
         </div>
       </div>
     </div>
-
-    <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-      <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4">快速操作</h2>
-      <div class="flex gap-4 flex-wrap">
-        <button
-          @click="handleValidate"
-          :disabled="validating"
-          class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ validating ? '验证中...' : '立即验证' }}
-        </button>
-        <button
-          @click="handleFetch"
-          :disabled="fetching"
-          class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ fetching ? '获取中...' : '立即获取' }}
-        </button>
-        <button
-          @click="refreshStats"
-          class="px-6 py-3 bg-slate-500 text-white rounded-lg hover:bg-slate-600"
-        >
-          刷新统计
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -82,8 +65,6 @@ import type { StatsData } from '@/types';
 
 const appStore = useAppStore();
 const loading = ref(false);
-const validating = ref(false);
-const fetching = ref(false);
 const stats = ref<StatsData>({
   total: 0,
   valid: 0,
@@ -102,31 +83,6 @@ async function refreshStats() {
   }
 }
 
-async function handleValidate() {
-  validating.value = true;
-  try {
-    await api.validateProxies();
-    appStore.showToast('验证任务已启动', 'success');
-    setTimeout(refreshStats, 2000);
-  } catch (error: any) {
-    appStore.showToast(error.message, 'error');
-  } finally {
-    validating.value = false;
-  }
-}
-
-async function handleFetch() {
-  fetching.value = true;
-  try {
-    await api.fetchProxies();
-    appStore.showToast('获取任务已启动', 'success');
-    setTimeout(refreshStats, 2000);
-  } catch (error: any) {
-    appStore.showToast(error.message, 'error');
-  } finally {
-    fetching.value = false;
-  }
-}
 
 onMounted(() => {
   refreshStats();
