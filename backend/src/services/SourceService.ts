@@ -70,6 +70,10 @@ export class SourceService {
 
   async deleteSource(id: string): Promise<void> {
     const db = getDatabase();
+    const row = await db.get('SELECT url FROM sources WHERE id = ?', id);
+    if (row && row.url === 'https://charlespikachu.github.io/freeproxy/proxies.json') {
+      throw new Error('默认来源不允许删除');
+    }
     await db.run('DELETE FROM sources WHERE id = ?', id);
   }
 
