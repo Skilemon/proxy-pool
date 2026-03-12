@@ -4,6 +4,9 @@
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-slate-900 dark:text-white">代理列表</h2>
         <div class="flex gap-2">
+          <button @click="handleValidateNow" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+            立即验证
+          </button>
           <button @click="showAddForm = !showAddForm" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             添加代理
           </button>
@@ -195,6 +198,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useProxyStore } from '@/stores/proxyStore';
+import { api } from '@/api/client';
 import { useAppStore } from '@/stores/appStore';
 
 const proxyStore = useProxyStore();
@@ -309,6 +313,15 @@ async function handleImport() {
     appStore.showToast(`导入成功: 新增 ${result.added} 条，重复 ${result.duplicates} 条`, 'success');
     importContent.value = '';
     showImportForm.value = false;
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  }
+}
+
+async function handleValidateNow() {
+  try {
+    await api.validateProxies();
+    appStore.showToast('已触发验证，请稍后刷新查看结果', 'success');
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }
