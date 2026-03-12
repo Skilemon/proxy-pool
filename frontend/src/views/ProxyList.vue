@@ -101,6 +101,7 @@
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">状态</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">响应时间</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">创建时间</th>
+              <th class="p-3 text-left text-slate-700 dark:text-slate-300">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -125,6 +126,12 @@
               </td>
               <td class="p-3 text-slate-900 dark:text-white">{{ proxy.responseTime ? `${proxy.responseTime}ms` : '-' }}</td>
               <td class="p-3 text-slate-900 dark:text-white">{{ formatDate(proxy.createdAt) }}</td>
+              <td class="p-3">
+                <button
+                  @click="copyProxy(proxy)"
+                  class="px-3 py-1 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded hover:bg-slate-200 dark:hover:bg-slate-500 text-sm"
+                >复制</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -336,6 +343,18 @@ async function handleDeleteSelected() {
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }
+}
+
+function copyProxy(proxy: any) {
+  let text = `${proxy.protocol}://${proxy.host}:${proxy.port}`;
+  if (proxy.username && proxy.password) {
+    text = `${proxy.protocol}://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    appStore.showToast('已复制到剪贴板', 'success');
+  }).catch(() => {
+    appStore.showToast('复制失败', 'error');
+  });
 }
 
 function formatDate(dateString: string): string {
