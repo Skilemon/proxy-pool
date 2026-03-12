@@ -29,11 +29,17 @@ export interface AppSettings {
   testUrl: string;
 }
 
+export interface ProtocolStats {
+  total: number;
+  valid: number;
+  invalid: number;
+}
+
 export interface StatsData {
   total: number;
   valid: number;
   invalid: number;
-  byProtocol: Record<string, number>;
+  byProtocol: Record<string, ProtocolStats>;
 }
 
 export interface ApiResponse<T = any> {

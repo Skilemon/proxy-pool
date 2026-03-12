@@ -25,9 +25,22 @@
       <div v-if="!loading && Object.keys(stats.byProtocol).length > 0" class="mt-6">
         <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">按协议分类</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div v-for="(count, protocol) in stats.byProtocol" :key="protocol" class="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
-            <div class="text-sm text-slate-600 dark:text-slate-400">{{ protocol.toUpperCase() }}</div>
-            <div class="text-2xl font-bold text-slate-900 dark:text-white">{{ count }}</div>
+          <div v-for="(protocolStats, protocol) in stats.byProtocol" :key="protocol" class="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+            <div class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">{{ (protocol as string).toUpperCase() }}</div>
+            <div class="space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-500 dark:text-slate-400">总代理数</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-white">{{ protocolStats.total }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-green-600 dark:text-green-400">有效代理</span>
+                <span class="text-sm font-bold text-green-700 dark:text-green-300">{{ protocolStats.valid }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-red-500 dark:text-red-400">无效代理</span>
+                <span class="text-sm font-bold text-red-600 dark:text-red-400">{{ protocolStats.invalid }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

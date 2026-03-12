@@ -112,11 +112,19 @@ export class ProxyService {
 
     const total = await db.get('SELECT COUNT(*) as count FROM proxies');
     const valid = await db.get('SELECT COUNT(*) as count FROM proxies WHERE isValid = 1');
-    const byProtocol = await db.all('SELECT protocol, COUNT(*) as count FROM proxies GROUP BY protocol');
+    const byProtocol = await db.all(
+      'SELECT protocol, COUNT(*) as total, SUM(isValid) as valid FROM proxies GROUP BY protocol'
+    );
 
-    const byProtocolMap: Record<string, number> = {};
+    const byProtocolMap: Record<string, { total: number; valid: number; invalid: number }> = {};
     byProtocol.forEach(row => {
-      byProtocolMap[row.protocol] = row.count;
+      const rowTotal = row.total as number;
+      const rowValid = (row.valid as number) || 0;
+      byProtocolMap[row.protocol] = {
+        total: rowTotal,
+        valid: rowValid,
+        invalid: rowTotal - rowValid
+      };
     });
 
     return {

@@ -47,9 +47,15 @@ export interface ImportResult {
   duplicates: number;
 }
 
+export interface ProtocolStats {
+  total: number;
+  valid: number;
+  invalid: number;
+}
+
 export interface StatsData {
   total: number;
   valid: number;
   invalid: number;
-  byProtocol: Record<string, number>;
+  byProtocol: Record<string, ProtocolStats>;
 }
