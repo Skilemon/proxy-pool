@@ -64,6 +64,24 @@
           />
         </div>
 
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="text-sm font-medium text-slate-700 dark:text-slate-300">获取前清除无效代理</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">每次获取代理前，自动删除所有验证不通过的代理</div>
+          </div>
+          <button
+            type="button"
+            @click="localSettings.clearInvalidOnFetch = !localSettings.clearInvalidOnFetch"
+            :class="localSettings.clearInvalidOnFetch ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none"
+          >
+            <span
+              :class="localSettings.clearInvalidOnFetch ? 'translate-x-5' : 'translate-x-0'"
+              class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow transition duration-200"
+            />
+          </button>
+        </div>
+
         <div class="flex gap-4">
           <button
             @click="handleSave"
@@ -129,7 +147,8 @@ const localSettings = ref<AppSettings>({
   fetchInterval: 60,
   validationTimeout: 5000,
   validationConcurrency: 10,
-  testUrl: ''
+  testUrl: '',
+  clearInvalidOnFetch: false
 });
 
 const oldPassword = ref('');

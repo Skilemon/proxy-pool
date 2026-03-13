@@ -28,6 +28,7 @@ export interface AppSettings {
   validationTimeout: number;
   validationConcurrency: number;
   testUrl: string;
+  clearInvalidOnFetch: boolean;
 }
 
 export interface ProtocolStats {

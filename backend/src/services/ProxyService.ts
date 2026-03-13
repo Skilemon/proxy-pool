@@ -113,6 +113,14 @@ export class ProxyService {
     return rows.map(row => ({ ...row, isValid: Boolean(row.isValid) }));
   }
 
+  async deleteInvalidProxies(): Promise<number> {
+    const db = getDatabase();
+    const result = await db.get('SELECT COUNT(*) as count FROM proxies WHERE isValid = 0');
+    const count = result?.count ?? 0;
+    await db.run('DELETE FROM proxies WHERE isValid = 0');
+    return count;
+  }
+
   async deleteProxy(id: string): Promise<void> {
     const db = getDatabase();
     await db.run('DELETE FROM proxies WHERE id = ?', id);

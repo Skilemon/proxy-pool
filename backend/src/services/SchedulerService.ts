@@ -136,6 +136,13 @@ export class SchedulerService {
 
   async runFetch(): Promise<void> {
     try {
+      const settings = await this.settingsService.getSettings();
+      if (settings.clearInvalidOnFetch) {
+        const deleted = await this.proxyService.deleteInvalidProxies();
+        if (deleted > 0) {
+          console.log(`已清除 ${deleted} 个无效代理`);
+        }
+      }
       const result = await this.fetcherService.fetchFromAllSources();
       console.log(`获取完成: 从 ${result.total} 个来源添加了 ${result.added} 个代理，跳过 ${result.duplicates} 个重复`);
     } catch (error) {

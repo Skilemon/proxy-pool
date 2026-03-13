@@ -28,6 +28,7 @@ export interface AppSettings {
   validationTimeout: number; // 毫秒
   validationConcurrency: number;
   testUrl: string;
+  clearInvalidOnFetch: boolean; // 获取前是否清除无效代理
 }
 
 export interface ProxyFilter {
