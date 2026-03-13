@@ -86,12 +86,16 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
       validatorService.setTimeout(settings.validationTimeout);
     }
 
-    // 从结果中挑出第一个：校验通过 且 响应时间满足要求
-    const matched = validationResults.find(({ result }) => {
+    // 从结果中筛出所有满足条件的，再随机返回一条
+    const qualifiedList = validationResults.filter(({ result }) => {
       if (!result.isValid) return false;
       if (maxResponseTime !== undefined && result.responseTime! > maxResponseTime) return false;
       return true;
     });
+
+    const matched = qualifiedList.length > 0
+      ? qualifiedList[Math.floor(Math.random() * qualifiedList.length)]
+      : null;
 
     if (!matched) {
       return res.status(404).json({ success: false, error: '没有满足条件的可用代理' });
