@@ -173,9 +173,14 @@ async function handleSave() {
   }
 }
 
-function handleReset() {
-  localSettings.value = { ...settingsStore.settings };
-  appStore.showToast('已重置', 'info');
+async function handleReset() {
+  try {
+    const defaults = await api.getDefaultSettings();
+    localSettings.value = { ...defaults };
+    appStore.showToast('已重置为默认值', 'info');
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  }
 }
 
 async function handleChangePassword() {

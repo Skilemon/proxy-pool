@@ -106,6 +106,11 @@ class ApiClient {
     return data.data!;
   }
 
+  async getDefaultSettings(): Promise<AppSettings> {
+    const { data } = await this.client.get<ApiResponse<AppSettings>>('/settings/defaults');
+    return data.data!;
+  }
+
   async updateSettings(settings: Partial<AppSettings>): Promise<void> {
     await this.client.put('/settings', settings);
   }

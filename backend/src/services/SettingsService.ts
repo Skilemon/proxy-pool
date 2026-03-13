@@ -2,6 +2,17 @@ import { getDatabase } from '../database/connection';
 import { AppSettings } from '../types';
 
 export class SettingsService {
+  getDefaultSettings(): AppSettings {
+    return {
+      validationInterval: 30,
+      fetchInterval: 60,
+      validationTimeout: 5000,
+      validationConcurrency: 10,
+      testUrl: 'https://cp.cloudflare.com/generate_204',
+      clearInvalidOnFetch: false
+    };
+  }
+
   async getSettings(): Promise<AppSettings> {
     const db = getDatabase();
     const rows = await db.all('SELECT key, value FROM settings');

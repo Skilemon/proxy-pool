@@ -10,6 +10,10 @@ export function createSettingsRoutes(
 ): Router {
   const router = Router();
 
+  router.get('/defaults', (req, res) => {
+    res.json({ success: true, data: settingsService.getDefaultSettings() });
+  });
+
   router.get('/', async (req, res, next) => {
     try {
       const settings = await settingsService.getSettings();
