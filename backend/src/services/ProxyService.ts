@@ -91,6 +91,28 @@ export class ProxyService {
     return { ...row, isValid: Boolean(row.isValid) };
   }
 
+  async getValidProxyCandidates(protocol?: string, maxResponseTime?: number, limit: number = 10): Promise<ProxyEntry[]> {
+    const db = getDatabase();
+    let query = 'SELECT * FROM proxies WHERE isValid = 1';
+    const params: any[] = [];
+
+    if (protocol) {
+      query += ' AND protocol = ?';
+      params.push(protocol);
+    }
+
+    if (maxResponseTime !== undefined) {
+      query += ' AND responseTime <= ?';
+      params.push(maxResponseTime);
+    }
+
+    query += ' ORDER BY RANDOM() LIMIT ?';
+    params.push(limit);
+
+    const rows = await db.all(query, params);
+    return rows.map(row => ({ ...row, isValid: Boolean(row.isValid) }));
+  }
+
   async deleteProxy(id: string): Promise<void> {
     const db = getDatabase();
     await db.run('DELETE FROM proxies WHERE id = ?', id);

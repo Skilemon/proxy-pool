@@ -58,23 +58,48 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   try {
     const protocol = req.query.protocol as string | undefined;
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
-    const proxy = await proxyService.getValidProxy(protocol, maxResponseTime);
 
-    if (!proxy) {
+    const settings = await settingsService.getSettings();
+    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 20);
+
+    if (candidates.length === 0) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
     }
 
-    const auth = proxy.username && proxy.password ? `${proxy.username}:${proxy.password}@` : '';
-    const proxyUrl = `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`;
+    // 并发校验所有候选代理，沿用全局校验的并发数和超时设置
+    const validationResults = await Promise.all(
+      candidates.map(async (candidate) => {
+        const result = await validatorService.validateProxy(candidate);
+        await proxyService.updateProxyValidation(candidate.id, result.isValid, result.responseTime);
+        return { candidate, result };
+      })
+    );
+
+    // 从并发结果中挑出第一个：校验通过 且 响应时间满足要求
+    const matched = validationResults.find(({ result }) => {
+      if (!result.isValid) return false;
+      if (maxResponseTime !== undefined && result.responseTime! > maxResponseTime) return false;
+      return true;
+    });
+
+    if (!matched) {
+      return res.status(404).json({ success: false, error: '没有满足条件的可用代理' });
+    }
+
+    const { candidate: selectedProxy, result: selectedResult } = matched;
+    const auth = selectedProxy.username && selectedProxy.password
+      ? `${selectedProxy.username}:${selectedProxy.password}@`
+      : '';
+    const proxyUrl = `${selectedProxy.protocol}://${auth}${selectedProxy.host}:${selectedProxy.port}`;
 
     res.json({
       success: true,
       data: {
         proxy: proxyUrl,
-        protocol: proxy.protocol,
-        host: proxy.host,
-        port: proxy.port,
-        responseTime: proxy.responseTime
+        protocol: selectedProxy.protocol,
+        host: selectedProxy.host,
+        port: selectedProxy.port,
+        responseTime: selectedResult.responseTime
       }
     });
   } catch (error: any) {
