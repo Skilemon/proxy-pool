@@ -9,7 +9,8 @@ export const useSettingsStore = defineStore('settings', () => {
     fetchInterval: 60,
     validationTimeout: 5000,
     validationConcurrency: 10,
-    testUrl: ''
+    testUrl: '',
+    clearInvalidOnFetch: false
   });
 
   async function fetchSettings() {
