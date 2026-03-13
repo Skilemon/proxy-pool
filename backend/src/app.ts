@@ -60,22 +60,33 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
 
     const settings = await settingsService.getSettings();
-    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 20);
+    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 10);
 
     if (candidates.length === 0) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
     }
 
-    // 并发校验所有候选代理，沿用全局校验的并发数和超时设置
-    const validationResults = await Promise.all(
-      candidates.map(async (candidate) => {
-        const result = await validatorService.validateProxy(candidate);
-        await proxyService.updateProxyValidation(candidate.id, result.isValid, result.responseTime);
-        return { candidate, result };
-      })
-    );
+    // 若用户传入 delay，则以此作为校验超时；否则沿用全局设置
+    if (maxResponseTime !== undefined) {
+      validatorService.setTimeout(maxResponseTime);
+    }
 
-    // 从并发结果中挑出第一个：校验通过 且 响应时间满足要求
+    // 沿用全局校验的并发数，逐结果更新数据库
+    const candidateMap = new Map(candidates.map(c => [c.id, c]));
+    const validationResults: { candidate: typeof candidates[0], result: Awaited<ReturnType<typeof validatorService.validateProxy>> }[] = [];
+
+    await validatorService.validateProxies(candidates, settings.validationConcurrency, async (result) => {
+      await proxyService.updateProxyValidation(result.proxyId, result.isValid, result.responseTime);
+      const candidate = candidateMap.get(result.proxyId)!;
+      validationResults.push({ candidate, result });
+    });
+
+    // 恢复全局超时设置
+    if (maxResponseTime !== undefined) {
+      validatorService.setTimeout(settings.validationTimeout);
+    }
+
+    // 从结果中挑出第一个：校验通过 且 响应时间满足要求
     const matched = validationResults.find(({ result }) => {
       if (!result.isValid) return false;
       if (maxResponseTime !== undefined && result.responseTime! > maxResponseTime) return false;
