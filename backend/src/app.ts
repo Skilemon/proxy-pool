@@ -41,7 +41,7 @@ app.use(requestLogger);
 
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 100,
+  max: 120,
   message: { success: false, error: '请求过于频繁，请稍后再试' }
 });
 
@@ -60,7 +60,7 @@ app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
 
     const settings = await settingsService.getSettings();
-    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 10);
+    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 5);
 
     if (candidates.length === 0) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
