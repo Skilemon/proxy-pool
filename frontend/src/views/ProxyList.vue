@@ -41,12 +41,27 @@
 
       <div v-if="showImportForm" class="mb-6 p-4 bg-slate-50 dark:bg-slate-700 rounded-lg">
         <h3 class="text-lg font-semibold mb-4 text-slate-900 dark:text-white">批量导入</h3>
+        <div class="mb-3 flex items-center gap-3">
+          <label class="text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">导入类型:</label>
+          <select v-model="importProtocol" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white">
+            <option value="">自动识别</option>
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+            <option value="socks4">SOCKS4</option>
+            <option value="socks5">SOCKS5</option>
+          </select>
+          <span class="text-xs text-slate-500 dark:text-slate-400">{{ importProtocol ? `选择后将自动为无协议前缀的行补充 ${importProtocol}://` : '根据每行内容自动识别协议' }}</span>
+        </div>
         <textarea
           v-model="importContent"
           rows="6"
-          placeholder="每行一个代理，格式: http://ip:port 或 socks5://user:pass@ip:port"
+          :placeholder="importProtocol ? `每行一个代理，格式: ip:port 或 ${importProtocol}://ip:port` : '每行一个代理，格式: http://ip:port 或 socks5://user:pass@ip:port'"
           class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white"
         />
+        <div v-if="importValidationWarnings.length > 0" class="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
+          <p class="text-xs text-yellow-700 dark:text-yellow-400 font-medium mb-1">格式提示:</p>
+          <p v-for="(w, i) in importValidationWarnings" :key="i" class="text-xs text-yellow-600 dark:text-yellow-500">{{ w }}</p>
+        </div>
         <div class="mt-3 flex gap-2">
           <button @click="handleImport" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">开始导入</button>
           <button @click="showImportForm = false" class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600">取消</button>
@@ -215,6 +230,7 @@ const appStore = useAppStore();
 const showAddForm = ref(false);
 const showImportForm = ref(false);
 const importContent = ref('');
+const importProtocol = ref<'' | 'http' | 'https' | 'socks4' | 'socks5'>('');
 const statusFilter = ref<'all' | 'valid' | 'invalid'>('all');
 const protocolFilter = ref<'all' | 'http' | 'https' | 'socks4' | 'socks5'>('all');
 const responseTimeFilter = ref<'all' | '500' | '1000' | '2000' | '5000'>('all');
@@ -310,6 +326,35 @@ async function handleAddProxy() {
   }
 }
 
+const PROTOCOL_PREFIXES = ['http://', 'https://', 'socks4://', 'socks5://'];
+
+const importValidationWarnings = computed(() => {
+  if (!importContent.value.trim() || !importProtocol.value) return [];
+  const warnings: string[] = [];
+  const lines = importContent.value.split('\n').map(l => l.trim()).filter(Boolean);
+  const noPrefix = lines.filter(l => !PROTOCOL_PREFIXES.some(p => l.toLowerCase().startsWith(p)));
+  if (noPrefix.length > 0) {
+    warnings.push(`${noPrefix.length} 行没有协议前缀，将自动添加 ${importProtocol.value}://`);
+  }
+  const wrongPrefix = lines.filter(l =>
+    PROTOCOL_PREFIXES.some(p => l.toLowerCase().startsWith(p)) &&
+    !l.toLowerCase().startsWith(importProtocol.value + '://')
+  );
+  if (wrongPrefix.length > 0) {
+    warnings.push(`${wrongPrefix.length} 行的协议前缀与所选类型不符，将保留原有协议`);
+  }
+  return warnings;
+});
+
+function buildImportContent(): string {
+  if (!importProtocol.value) return importContent.value;
+  const lines = importContent.value.split('\n').map(l => l.trim()).filter(Boolean);
+  return lines.map(line => {
+    if (PROTOCOL_PREFIXES.some(p => line.toLowerCase().startsWith(p))) return line;
+    return `${importProtocol.value}://${line}`;
+  }).join('\n');
+}
+
 async function handleImport() {
   if (!importContent.value.trim()) {
     appStore.showToast('请输入导入内容', 'error');
@@ -317,9 +362,11 @@ async function handleImport() {
   }
 
   try {
-    const result = await proxyStore.importProxies(importContent.value);
+    const content = buildImportContent();
+    const result = await proxyStore.importProxies(content);
     appStore.showToast(`导入成功: 新增 ${result.added} 条，重复 ${result.duplicates} 条`, 'success');
     importContent.value = '';
+    importProtocol.value = '';
     showImportForm.value = false;
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
