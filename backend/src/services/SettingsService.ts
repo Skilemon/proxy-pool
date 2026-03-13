@@ -8,7 +8,7 @@ export class SettingsService {
       fetchInterval: 60,
       validationTimeout: 5000,
       validationConcurrency: 10,
-      testUrl: 'https://cp.cloudflare.com/generate_204',
+      testUrl: 'http://www.apple.com/library/test/success.html',
       clearInvalidOnFetch: false
     };
   }
@@ -27,7 +27,7 @@ export class SettingsService {
       fetchInterval: parseInt(settings.fetchInterval || '60', 10),
       validationTimeout: parseInt(settings.validationTimeout || '5000', 10),
       validationConcurrency: parseInt(settings.validationConcurrency || '10', 10),
-      testUrl: settings.testUrl || 'https://cp.cloudflare.com/generate_204',
+      testUrl: settings.testUrl || 'http://www.apple.com/library/test/success.html',
       clearInvalidOnFetch: settings.clearInvalidOnFetch === 'true'
     };
   }

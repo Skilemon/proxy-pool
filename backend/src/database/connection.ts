@@ -130,7 +130,7 @@ async function initDefaultSettings(database: AsyncDatabase): Promise<void> {
     fetchInterval: '60',
     validationTimeout: '5000',
     validationConcurrency: '10',
-    testUrl: 'https://cp.cloudflare.com/generate_204',
+    testUrl: 'http://www.apple.com/library/test/success.html',
     clearInvalidOnFetch: 'false'
   };
 

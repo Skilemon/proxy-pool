@@ -7,7 +7,7 @@ export class ValidatorService {
   private testUrl: string;
   private timeout: number;
 
-  constructor(testUrl: string = 'https://cp.cloudflare.com/generate_204', timeout: number = 5000) {
+  constructor(testUrl: string = 'http://www.apple.com/library/test/success.html', timeout: number = 5000) {
     this.testUrl = testUrl;
     this.timeout = timeout;
   }
