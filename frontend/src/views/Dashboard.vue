@@ -3,13 +3,44 @@
     <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-slate-900 dark:text-white">统计概览</h2>
-        <button
-          @click="refreshStats"
-          :disabled="loading"
-          class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ loading ? '刷新中...' : '刷新统计' }}
-        </button>
+        <div class="flex gap-2">
+          <button
+            @click="refreshStats"
+            :disabled="loading"
+            class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ loading ? '刷新中...' : '刷新统计' }}
+          </button>
+          <button
+            @click="showConfirm = true"
+            :disabled="loading || clearing"
+            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ clearing ? '清除中...' : '清除无效' }}
+          </button>
+        </div>
+
+        <!-- 二次确认弹窗 -->
+        <div v-if="showConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">确认清除无效代理</h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">此操作将删除所有无效代理，且不可恢复，是否继续？</p>
+            <div class="flex justify-end gap-3">
+              <button
+                @click="showConfirm = false"
+                class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600"
+              >
+                取消
+              </button>
+              <button
+                @click="clearInvalid"
+                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                确认清除
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div v-if="loading" class="text-center py-8 text-slate-500">加载中...</div>
@@ -65,6 +96,8 @@ import type { StatsData } from '@/types';
 
 const appStore = useAppStore();
 const loading = ref(false);
+const clearing = ref(false);
+const showConfirm = ref(false);
 const stats = ref<StatsData>({
   total: 0,
   valid: 0,
@@ -83,6 +116,20 @@ async function refreshStats() {
   }
 }
 
+
+async function clearInvalid() {
+  showConfirm.value = false;
+  clearing.value = true;
+  try {
+    const result = await api.deleteInvalidProxies();
+    appStore.showToast(`已清除 ${result.count} 个无效代理`, 'success');
+    await refreshStats();
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  } finally {
+    clearing.value = false;
+  }
+}
 
 onMounted(() => {
   refreshStats();

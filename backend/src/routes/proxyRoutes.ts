@@ -53,6 +53,15 @@ export function createProxyRoutes(proxyService: ProxyService): Router {
     }
   });
 
+  router.delete('/invalid', async (req, res, next) => {
+    try {
+      const count = await proxyService.deleteInvalidProxies();
+      res.json({ success: true, data: { count } });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete('/:id', async (req, res, next) => {
     try {
       await proxyService.deleteProxy(req.params.id);

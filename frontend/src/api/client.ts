@@ -115,6 +115,11 @@ class ApiClient {
     await this.client.put('/settings', settings);
   }
 
+  async deleteInvalidProxies(): Promise<{ count: number }> {
+    const { data } = await this.client.delete<ApiResponse<{ count: number }>>('/proxies/invalid');
+    return data.data!;
+  }
+
   async validateProxies(): Promise<void> {
     await this.client.post('/validate');
   }
