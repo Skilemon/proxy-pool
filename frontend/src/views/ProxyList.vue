@@ -129,11 +129,19 @@
               </td>
               <td class="p-3 text-slate-900 dark:text-white">{{ proxy.responseTime ? `${proxy.responseTime}ms` : '-' }}</td>
               <td class="p-3 text-slate-900 dark:text-white">{{ formatDate(proxy.createdAt) }}</td>
-              <td class="p-3">
+              <td class="p-3 flex gap-1">
                 <button
                   @click="copyProxy(proxy)"
                   class="px-3 py-1 bg-slate-100 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded hover:bg-slate-200 dark:hover:bg-slate-500 text-sm"
                 >复制</button>
+                <button
+                  @click="handleValidateSingle(proxy.id)"
+                  class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800 text-sm"
+                >验证</button>
+                <button
+                  @click="handleDeleteSingle(proxy.id)"
+                  class="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 text-sm"
+                >删除</button>
               </td>
             </tr>
           </tbody>
@@ -352,6 +360,28 @@ async function handleDeleteSelected() {
     await proxyStore.deleteProxies(proxyStore.selectedIds);
     appStore.showToast('删除成功', 'success');
     // 删除后若当前页超出范围则回退
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  }
+}
+
+async function handleValidateSingle(id: string) {
+  try {
+    await api.validateProxies([id]);
+    appStore.showToast('已触发验证，请稍后刷新查看结果', 'success');
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  }
+}
+
+async function handleDeleteSingle(id: string) {
+  if (!confirm('确定删除该代理吗？')) return;
+  try {
+    await proxyStore.deleteProxies([id]);
+    appStore.showToast('删除成功', 'success');
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value;
     }
