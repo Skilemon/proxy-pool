@@ -126,7 +126,8 @@ app.post('/api/validate', authMiddleware, (req: Request, res: Response) => {
   if (!schedulerService.tryLockValidation()) {
     return res.json({ success: false, message: '验证任务已在运行中' });
   }
-  schedulerService.runValidation().catch((error) => {
+  const ids: string[] | undefined = Array.isArray(req.body?.ids) && req.body.ids.length > 0 ? req.body.ids : undefined;
+  schedulerService.runValidation(ids).catch((error) => {
     console.error('验证任务执行失败:', error);
   });
   res.json({ success: true, message: '验证任务已启动' });

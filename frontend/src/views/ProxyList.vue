@@ -320,8 +320,10 @@ async function handleImport() {
 
 async function handleValidateNow() {
   try {
-    await api.validateProxies();
-    appStore.showToast('已触发验证，请稍后刷新查看结果', 'success');
+    const ids = proxyStore.selectedIds.length > 0 ? proxyStore.selectedIds : undefined;
+    await api.validateProxies(ids);
+    const msg = ids ? `已触发验证 ${ids.length} 条选中代理，请稍后刷新查看结果` : '已触发验证全部代理，请稍后刷新查看结果';
+    appStore.showToast(msg, 'success');
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }

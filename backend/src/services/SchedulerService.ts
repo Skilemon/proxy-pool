@@ -103,9 +103,12 @@ export class SchedulerService {
     return true;
   }
 
-  async runValidation(): Promise<void> {
+  async runValidation(ids?: string[]): Promise<void> {
     try {
-      const proxies = await this.proxyService.getAllProxies();
+      const allProxies = await this.proxyService.getAllProxies();
+      const proxies = ids && ids.length > 0
+        ? allProxies.filter(p => ids.includes(p.id))
+        : allProxies;
       if (proxies.length === 0) {
         console.log('没有代理需要验证');
         return;

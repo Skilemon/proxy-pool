@@ -120,8 +120,8 @@ class ApiClient {
     return data.data!;
   }
 
-  async validateProxies(): Promise<void> {
-    await this.client.post('/validate');
+  async validateProxies(ids?: string[]): Promise<void> {
+    await this.client.post('/validate', ids && ids.length > 0 ? { ids } : {});
   }
 
   async fetchProxies(): Promise<void> {
