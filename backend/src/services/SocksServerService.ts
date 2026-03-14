@@ -157,16 +157,11 @@ export class SocksServerService {
       const destPort = portBuf.readUInt16BE(0);
 
       // --- 选择上游代理并重试 ---
-      const candidates = await this.pickCandidates(username, account.mode);
-      if (candidates.length === 0) {
-        console.log(`[SOCKS5] 无可用代理: 用户=${username} 目标=${destHost}:${destPort}`);
-        socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
-        socket.destroy(); return;
-      }
-
       const { validationTimeout } = await this.settingsService.getSettings();
       let connected = false;
-      for (const upstream of candidates) {
+      let hasAny = false;
+      for await (const upstream of this.pickCandidates(username, account.mode)) {
+        hasAny = true;
         console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
         try {
           await this.connectViaUpstream(socket, reader, upstream, destHost, destPort, validationTimeout);
@@ -179,6 +174,12 @@ export class SocksServerService {
         }
       }
 
+      if (!hasAny) {
+        console.log(`[SOCKS5] 无可用代理: 用户=${username} 目标=${destHost}:${destPort}`);
+        socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
+        socket.destroy(); return;
+      }
+
       if (!connected) {
         console.log(`[SOCKS5] 所有候选代理均失败: 用户=${username} 目标=${destHost}:${destPort}`);
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
@@ -189,12 +190,21 @@ export class SocksServerService {
     }
   }
 
-  private async pickCandidates(username: string, mode: 'rotate' | 'sticky'): Promise<ProxyEntry[]> {
+  private async *pickCandidates(username: string, mode: 'rotate' | 'sticky'): AsyncGenerator<ProxyEntry> {
     if (mode === 'sticky') {
       const current = this.stickyMap.get(username);
-      if (current) return [current];
+      if (current) { yield current; return; }
     }
-    return this.proxyService.getValidProxyCandidates(undefined, undefined, 10);
+    const BATCH = 10;
+    const tried = new Set<string>();
+    while (true) {
+      const batch = await this.proxyService.getValidProxyCandidates(undefined, undefined, BATCH, [...tried]);
+      if (batch.length === 0) return;
+      for (const proxy of batch) {
+        tried.add(proxy.id);
+        yield proxy;
+      }
+    }
   }
 
   private async connectViaUpstream(
