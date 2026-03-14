@@ -165,11 +165,12 @@ export class SocksServerService {
       }
 
       const { validationTimeout } = await this.settingsService.getSettings();
+      const connectTimeout = Math.floor(validationTimeout / 2);
       let connected = false;
       for (const upstream of candidates) {
         console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
         try {
-          await this.connectViaUpstream(socket, reader, upstream, destHost, destPort, validationTimeout);
+          await this.connectViaUpstream(socket, reader, upstream, destHost, destPort, connectTimeout);
           if (account.mode === 'sticky') this.stickyMap.set(username, upstream);
           connected = true;
           break;
@@ -194,7 +195,7 @@ export class SocksServerService {
       const current = this.stickyMap.get(username);
       if (current) return [current];
     }
-    return this.proxyService.getValidProxyCandidates(undefined, undefined, 5);
+    return this.proxyService.getValidProxyCandidates(undefined, undefined, 10);
   }
 
   private async connectViaUpstream(
