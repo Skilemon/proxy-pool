@@ -2,6 +2,7 @@ import * as net from 'net';
 import { SocksClient } from 'socks';
 import { ProxyService } from './ProxyService';
 import { SocksAccountService } from './SocksAccountService';
+import { SettingsService } from './SettingsService';
 import { ProxyEntry } from '../types';
 
 const USER_PASS_AUTH = 0x02;
@@ -61,12 +62,14 @@ export class SocksServerService {
   private server: net.Server;
   private proxyService: ProxyService;
   private accountService: SocksAccountService;
+  private settingsService: SettingsService;
   private port: number;
   private stickyMap = new Map<string, ProxyEntry>();
 
-  constructor(proxyService: ProxyService, accountService: SocksAccountService, port: number = 1080) {
+  constructor(proxyService: ProxyService, accountService: SocksAccountService, settingsService: SettingsService, port: number = 1080) {
     this.proxyService = proxyService;
     this.accountService = accountService;
+    this.settingsService = settingsService;
     this.port = port;
     this.server = net.createServer((socket) => this.handleConnection(socket));
   }
@@ -153,21 +156,31 @@ export class SocksServerService {
       const portBuf = await reader.read(2);
       const destPort = portBuf.readUInt16BE(0);
 
-      // --- 选择上游代理 ---
-      const upstream = await this.pickProxy(username, account.mode);
-      if (!upstream) {
+      // --- 选择上游代理并重试 ---
+      const candidates = await this.pickCandidates(username, account.mode);
+      if (candidates.length === 0) {
         console.log(`[SOCKS5] 无可用代理: 用户=${username} 目标=${destHost}:${destPort}`);
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
         socket.destroy(); return;
       }
 
-      console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
+      const { validationTimeout } = await this.settingsService.getSettings();
+      let connected = false;
+      for (const upstream of candidates) {
+        console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
+        try {
+          await this.connectViaUpstream(socket, reader, upstream, destHost, destPort, validationTimeout);
+          if (account.mode === 'sticky') this.stickyMap.set(username, upstream);
+          connected = true;
+          break;
+        } catch (err: any) {
+          console.log(`[SOCKS5] 上游连接失败: 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 错误=${err.message}，尝试下一个...`);
+          if (account.mode === 'sticky') this.stickyMap.delete(username);
+        }
+      }
 
-      try {
-        await this.connectViaUpstream(socket, reader, upstream, destHost, destPort);
-      } catch (err: any) {
-        console.log(`[SOCKS5] 上游连接失败: 用户=${username} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort} 错误=${err.message}`);
-        if (account.mode === 'sticky') this.stickyMap.delete(username);
+      if (!connected) {
+        console.log(`[SOCKS5] 所有候选代理均失败: 用户=${username} 目标=${destHost}:${destPort}`);
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
         socket.destroy();
       }
@@ -176,16 +189,29 @@ export class SocksServerService {
     }
   }
 
-  private async pickProxy(username: string, mode: 'rotate' | 'sticky'): Promise<ProxyEntry | null> {
-    if (mode === 'rotate') return this.proxyService.getValidProxy();
-    const current = this.stickyMap.get(username);
-    if (current) return current;
-    const proxy = await this.proxyService.getValidProxy();
-    if (proxy) this.stickyMap.set(username, proxy);
-    return proxy;
+  private async pickCandidates(username: string, mode: 'rotate' | 'sticky'): Promise<ProxyEntry[]> {
+    if (mode === 'sticky') {
+      const current = this.stickyMap.get(username);
+      if (current) return [current];
+    }
+    return this.proxyService.getValidProxyCandidates(undefined, undefined, 5);
   }
 
   private async connectViaUpstream(
+    clientSocket: net.Socket,
+    reader: SocketReader,
+    upstream: ProxyEntry,
+    destHost: string,
+    destPort: number,
+    timeoutMs: number = 10000
+  ): Promise<void> {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`连接超时 (${timeoutMs}ms)`)), timeoutMs)
+    );
+    return Promise.race([this._doConnect(clientSocket, reader, upstream, destHost, destPort), timeout]);
+  }
+
+  private async _doConnect(
     clientSocket: net.Socket,
     reader: SocketReader,
     upstream: ProxyEntry,

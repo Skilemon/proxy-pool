@@ -38,7 +38,7 @@ const settingsService = new SettingsService();
 const schedulerService = new SchedulerService(proxyService, validatorService, fetcherService, settingsService);
 const socksAccountService = new SocksAccountService();
 const SOCKS_PORT = Number(process.env.SOCKS_PORT) || 1080;
-const socksServerService = new SocksServerService(proxyService, socksAccountService, SOCKS_PORT);
+const socksServerService = new SocksServerService(proxyService, socksAccountService, settingsService, SOCKS_PORT);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
