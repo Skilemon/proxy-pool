@@ -121,7 +121,7 @@ const DEFAULT_SOURCES = [
   },
   {
     name: '站大爷',
-    url: 'http://www.zdopen.com/FreeProxy/Get/?app_id=202603131809333426&akey=b6f2bb2312fe99ff&dalu=1&lastcheck_type=2&sleep_type=1&return_type=3'
+    url: 'http://www.zdopen.com/FreeProxy/Get/'
   }
 ];
 
