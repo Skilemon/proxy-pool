@@ -35,36 +35,68 @@
           </thead>
           <tbody>
             <tr v-for="source in sourceStore.sources" :key="source.id" class="border-b border-slate-200 dark:border-slate-700">
-              <td class="p-3 text-slate-900 dark:text-white">{{ source.name }}</td>
-              <td class="p-3 text-slate-900 dark:text-white text-sm truncate max-w-xs">{{ source.url }}</td>
-              <td class="p-3">
-                <button
-                  @click="toggleEnabled(source)"
-                  class="px-2 py-1 rounded text-sm"
-                  :class="source.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'"
-                >
-                  {{ source.enabled ? '启用' : '禁用' }}
-                </button>
-              </td>
-              <td class="p-3 text-slate-900 dark:text-white">{{ source.lastFetched ? formatDate(source.lastFetched) : '从未' }}</td>
-              <td class="p-3">
-                <div class="flex gap-2">
+              <template v-if="editingId === source.id">
+                <td class="p-3">
+                  <input v-model="editForm.name" class="w-full px-2 py-1 border rounded bg-white dark:bg-slate-600 dark:text-white text-sm" />
+                </td>
+                <td class="p-3">
+                  <input v-model="editForm.url" class="w-full px-2 py-1 border rounded bg-white dark:bg-slate-600 dark:text-white text-sm" />
+                </td>
+                <td class="p-3">
                   <button
-                    @click="handleFetchOne(source.id)"
-                    class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                    @click="toggleEnabled(source)"
+                    class="px-2 py-1 rounded text-sm"
+                    :class="source.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'"
                   >
-                    获取
+                    {{ source.enabled ? '启用' : '禁用' }}
                   </button>
+                </td>
+                <td class="p-3 text-slate-900 dark:text-white">{{ source.lastFetched ? formatDate(source.lastFetched) : '从未' }}</td>
+                <td class="p-3">
+                  <div class="flex gap-2">
+                    <button @click="handleSaveEdit(source.id)" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">保存</button>
+                    <button @click="cancelEdit" class="px-3 py-1 bg-slate-400 text-white rounded hover:bg-slate-500 text-sm">取消</button>
+                  </div>
+                </td>
+              </template>
+              <template v-else>
+                <td class="p-3 text-slate-900 dark:text-white">{{ source.name }}</td>
+                <td class="p-3 text-slate-900 dark:text-white text-sm truncate max-w-xs">{{ source.url }}</td>
+                <td class="p-3">
                   <button
-                    @click="handleDelete(source.id)"
-                    :disabled="source.isDefault"
-                    class="px-3 py-1 rounded text-sm text-white"
-                    :class="source.isDefault ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
+                    @click="toggleEnabled(source)"
+                    class="px-2 py-1 rounded text-sm"
+                    :class="source.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'"
                   >
-                    删除
+                    {{ source.enabled ? '启用' : '禁用' }}
                   </button>
-                </div>
-              </td>
+                </td>
+                <td class="p-3 text-slate-900 dark:text-white">{{ source.lastFetched ? formatDate(source.lastFetched) : '从未' }}</td>
+                <td class="p-3">
+                  <div class="flex gap-2">
+                    <button
+                      @click="handleFetchOne(source.id)"
+                      class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                    >
+                      获取
+                    </button>
+                    <button
+                      @click="startEdit(source)"
+                      class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      @click="handleDelete(source.id)"
+                      :disabled="source.isDefault"
+                      class="px-3 py-1 rounded text-sm text-white"
+                      :class="source.isDefault ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -92,6 +124,32 @@ const newSource = ref({
   enabled: true,
   isDefault: false
 });
+
+const editingId = ref<string | null>(null);
+const editForm = ref({ name: '', url: '' });
+
+function startEdit(source: ProxySource) {
+  editingId.value = source.id;
+  editForm.value = { name: source.name, url: source.url };
+}
+
+function cancelEdit() {
+  editingId.value = null;
+}
+
+async function handleSaveEdit(id: string) {
+  if (!editForm.value.name || !editForm.value.url) {
+    appStore.showToast('请填写完整信息', 'error');
+    return;
+  }
+  try {
+    await sourceStore.updateSource(id, { name: editForm.value.name, url: editForm.value.url });
+    appStore.showToast('更新成功', 'success');
+    editingId.value = null;
+  } catch (error: any) {
+    appStore.showToast(error.message, 'error');
+  }
+}
 
 async function handleAddSource() {
   if (!newSource.value.name || !newSource.value.url) {
