@@ -89,6 +89,15 @@ export async function initDatabase(): Promise<void> {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS socks_accounts (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'rotate',
+      enabled INTEGER DEFAULT 1,
+      createdAt TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_proxies_valid ON proxies(isValid);
     CREATE INDEX IF NOT EXISTS idx_proxies_protocol ON proxies(protocol);
     CREATE INDEX IF NOT EXISTS idx_sources_enabled ON sources(enabled);

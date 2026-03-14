@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import('@/views/Settings.vue')
     },
     {
+      path: '/socks-accounts',
+      name: 'SocksAccounts',
+      component: () => import('@/views/SocksAccounts.vue')
+    },
+    {
       path: '/help',
       name: 'Help',
       component: () => import('@/views/Help.vue')

@@ -1,33 +1,72 @@
 import * as net from 'net';
-import * as http from 'http';
 import { SocksClient } from 'socks';
 import { ProxyService } from './ProxyService';
+import { SocksAccountService } from './SocksAccountService';
 import { ProxyEntry } from '../types';
 
-// SOCKS5 认证方法
-const NO_AUTH = 0x00;
+const USER_PASS_AUTH = 0x02;
 const NO_ACCEPTABLE = 0xFF;
-
-// SOCKS5 命令
 const CMD_CONNECT = 0x01;
-
-// SOCKS5 地址类型
 const ATYP_IPV4 = 0x01;
 const ATYP_DOMAIN = 0x03;
 const ATYP_IPV6 = 0x04;
-
-// SOCKS5 应答
 const REP_SUCCESS = 0x00;
 const REP_GENERAL_FAILURE = 0x01;
 const REP_CMD_NOT_SUPPORTED = 0x07;
 
+/** 基于 Buffer 队列的可靠读取器，避免 unshift/事件竞争问题 */
+class SocketReader {
+  private buf: Buffer = Buffer.alloc(0);
+  private waiters: Array<{ n: number; resolve: (b: Buffer) => void; reject: (e: Error) => void }> = [];
+  private closed = false;
+
+  constructor(private socket: net.Socket) {
+    socket.on('data', (chunk: Buffer) => {
+      this.buf = Buffer.concat([this.buf, chunk]);
+      this.flush();
+    });
+    socket.on('error', (err) => this.fail(err));
+    socket.on('close', () => this.fail(new Error('socket closed')));
+    socket.on('end', () => this.fail(new Error('socket ended')));
+    // 确保 socket 处于 flowing 模式
+    socket.resume();
+  }
+
+  private flush() {
+    while (this.waiters.length > 0 && this.buf.length >= this.waiters[0].n) {
+      const { n, resolve } = this.waiters.shift()!;
+      const slice = this.buf.slice(0, n);
+      this.buf = this.buf.slice(n);
+      resolve(slice);
+    }
+  }
+
+  private fail(err: Error) {
+    if (this.closed) return;
+    this.closed = true;
+    for (const w of this.waiters) w.reject(err);
+    this.waiters = [];
+  }
+
+  read(n: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      if (this.closed) return reject(new Error('socket closed'));
+      this.waiters.push({ n, resolve, reject });
+      this.flush();
+    });
+  }
+}
+
 export class SocksServerService {
   private server: net.Server;
   private proxyService: ProxyService;
+  private accountService: SocksAccountService;
   private port: number;
+  private stickyMap = new Map<string, ProxyEntry>();
 
-  constructor(proxyService: ProxyService, port: number = 1080) {
+  constructor(proxyService: ProxyService, accountService: SocksAccountService, port: number = 1080) {
     this.proxyService = proxyService;
+    this.accountService = accountService;
     this.port = port;
     this.server = net.createServer((socket) => this.handleConnection(socket));
   }
@@ -35,7 +74,7 @@ export class SocksServerService {
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server.listen(this.port, '0.0.0.0', () => {
-        console.log(`SOCKS5 代理服务器运行在 0.0.0.0:${this.port}`);
+        console.log(`[SOCKS5] 代理服务器运行在 0.0.0.0:${this.port}`);
         resolve();
       });
       this.server.once('error', reject);
@@ -47,91 +86,121 @@ export class SocksServerService {
   }
 
   private async handleConnection(socket: net.Socket): Promise<void> {
+    console.log(`[SOCKS5] 新连接 来自=${socket.remoteAddress}:${socket.remotePort}`);
+    const reader = new SocketReader(socket);
     socket.on('error', () => socket.destroy());
 
     try {
-      // --- 握手阶段 ---
-      const greeting = await this.readBytes(socket, 2);
+      // --- 握手 ---
+      const greeting = await reader.read(2);
       if (greeting[0] !== 0x05) {
-        socket.destroy();
-        return;
+        console.log(`[SOCKS5] 非 SOCKS5 连接，丢弃`);
+        socket.destroy(); return;
       }
       const nMethods = greeting[1];
-      await this.readBytes(socket, nMethods); // 读取并忽略认证方法列表
-      // 回复：使用无认证方式
-      socket.write(Buffer.from([0x05, NO_AUTH]));
+      const methods = await reader.read(nMethods);
+      const supportsUserPass = Array.from(methods).includes(USER_PASS_AUTH);
+      if (!supportsUserPass) {
+        socket.write(Buffer.from([0x05, NO_ACCEPTABLE]));
+        socket.destroy(); return;
+      }
+      socket.write(Buffer.from([0x05, USER_PASS_AUTH]));
 
-      // --- 请求阶段 ---
-      const reqHeader = await this.readBytes(socket, 4);
-      if (reqHeader[0] !== 0x05) { socket.destroy(); return; }
-      if (reqHeader[1] !== CMD_CONNECT) {
+      // --- 用户名/密码认证 ---
+      const authVer = await reader.read(1);
+      if (authVer[0] !== 0x01) { socket.destroy(); return; }
+      const ulen = (await reader.read(1))[0];
+      const username = (await reader.read(ulen)).toString('utf8');
+      const plen = (await reader.read(1))[0];
+      const password = (await reader.read(plen)).toString('utf8');
+
+      const account = await this.accountService.getByUsername(username);
+      if (!account || account.password !== password) {
+        console.log(`[SOCKS5] 认证失败: 用户名=${username} 来自=${socket.remoteAddress}`);
+        socket.write(Buffer.from([0x01, 0x01]));
+        socket.destroy(); return;
+      }
+      socket.write(Buffer.from([0x01, 0x00]));
+      console.log(`[SOCKS5] 认证成功: 用户=${username}`);
+
+      // --- SOCKS5 请求 ---
+      const req = await reader.read(4);
+      if (req[0] !== 0x05) { socket.destroy(); return; }
+      const cmd = req[1];
+      const atyp = req[3];
+
+      if (cmd !== CMD_CONNECT) {
         socket.write(Buffer.from([0x05, REP_CMD_NOT_SUPPORTED, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
-        socket.destroy();
-        return;
+        socket.destroy(); return;
       }
 
-      const atyp = reqHeader[3];
       let destHost: string;
-      let destPort: number;
-
       if (atyp === ATYP_IPV4) {
-        const addrBuf = await this.readBytes(socket, 4);
-        destHost = Array.from(addrBuf).join('.');
+        const b = await reader.read(4);
+        destHost = Array.from(b).join('.');
       } else if (atyp === ATYP_DOMAIN) {
-        const lenBuf = await this.readBytes(socket, 1);
-        const domainBuf = await this.readBytes(socket, lenBuf[0]);
-        destHost = domainBuf.toString('utf8');
+        const len = (await reader.read(1))[0];
+        destHost = (await reader.read(len)).toString('utf8');
       } else if (atyp === ATYP_IPV6) {
-        const addrBuf = await this.readBytes(socket, 16);
+        const b = await reader.read(16);
         const parts: string[] = [];
-        for (let i = 0; i < 16; i += 2) {
-          parts.push(addrBuf.readUInt16BE(i).toString(16));
-        }
+        for (let i = 0; i < 16; i += 2) parts.push(b.readUInt16BE(i).toString(16));
         destHost = parts.join(':');
       } else {
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
-        socket.destroy();
-        return;
+        socket.destroy(); return;
       }
+      const portBuf = await reader.read(2);
+      const destPort = portBuf.readUInt16BE(0);
 
-      const portBuf = await this.readBytes(socket, 2);
-      destPort = portBuf.readUInt16BE(0);
-
-      // --- 从代理池获取上游代理 ---
-      const upstream = await this.proxyService.getValidProxy();
+      // --- 选择上游代理 ---
+      const upstream = await this.pickProxy(username, account.mode);
       if (!upstream) {
+        console.log(`[SOCKS5] 无可用代理: 用户=${username} 目标=${destHost}:${destPort}`);
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
-        socket.destroy();
-        return;
+        socket.destroy(); return;
       }
 
-      // --- 建立上游连接 ---
+      console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
+
       try {
-        await this.connectViaUpstream(socket, upstream, destHost, destPort);
-      } catch {
+        await this.connectViaUpstream(socket, reader, upstream, destHost, destPort);
+      } catch (err: any) {
+        console.log(`[SOCKS5] 上游连接失败: 用户=${username} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort} 错误=${err.message}`);
+        if (account.mode === 'sticky') this.stickyMap.delete(username);
         socket.write(Buffer.from([0x05, REP_GENERAL_FAILURE, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
         socket.destroy();
       }
-    } catch {
+    } catch (err: any) {
       socket.destroy();
     }
   }
 
+  private async pickProxy(username: string, mode: 'rotate' | 'sticky'): Promise<ProxyEntry | null> {
+    if (mode === 'rotate') return this.proxyService.getValidProxy();
+    const current = this.stickyMap.get(username);
+    if (current) return current;
+    const proxy = await this.proxyService.getValidProxy();
+    if (proxy) this.stickyMap.set(username, proxy);
+    return proxy;
+  }
+
   private async connectViaUpstream(
     clientSocket: net.Socket,
+    reader: SocketReader,
     upstream: ProxyEntry,
     destHost: string,
     destPort: number
   ): Promise<void> {
     const proto = upstream.protocol;
+    let upstreamSocket: net.Socket;
 
     if (proto === 'socks4' || proto === 'socks5') {
-      const socksType = proto === 'socks5' ? 5 : 4;
-      const { socket: upstreamSocket } = await SocksClient.createConnection({
+      const result = await SocksClient.createConnection({
         proxy: {
           host: upstream.host,
           port: upstream.port,
-          type: socksType as 4 | 5,
+          type: (proto === 'socks5' ? 5 : 4) as 4 | 5,
           ...(upstream.username && upstream.password
             ? { userId: upstream.username, password: upstream.password }
             : {})
@@ -139,104 +208,45 @@ export class SocksServerService {
         command: 'connect',
         destination: { host: destHost, port: destPort }
       });
-      this.pipeToClient(clientSocket, upstreamSocket);
+      upstreamSocket = result.socket;
     } else {
-      // http / https 上游：使用 HTTP CONNECT 隧道
-      await this.connectViaHttpProxy(clientSocket, upstream, destHost, destPort);
-    }
-  }
-
-  private connectViaHttpProxy(
-    clientSocket: net.Socket,
-    upstream: ProxyEntry,
-    destHost: string,
-    destPort: number
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const authHeader = upstream.username && upstream.password
-        ? `\r\nProxy-Authorization: Basic ${Buffer.from(`${upstream.username}:${upstream.password}`).toString('base64')}`
-        : '';
-
-      const upstreamSocket = net.createConnection(upstream.port, upstream.host, () => {
-        upstreamSocket.write(
-          `CONNECT ${destHost}:${destPort} HTTP/1.1\r\nHost: ${destHost}:${destPort}${authHeader}\r\n\r\n`
-        );
+      // HTTP/HTTPS 上游：发 CONNECT 隧道
+      upstreamSocket = await new Promise<net.Socket>((resolve, reject) => {
+        const s = net.createConnection({ host: upstream.host, port: upstream.port }, () => {
+          const auth = upstream.username && upstream.password
+            ? `Proxy-Authorization: Basic ${Buffer.from(`${upstream.username}:${upstream.password}`).toString('base64')}\r\n`
+            : '';
+          s.write(`CONNECT ${destHost}:${destPort} HTTP/1.1\r\nHost: ${destHost}:${destPort}\r\n${auth}\r\n`);
+        });
+        let resp = '';
+        const onData = (chunk: Buffer) => {
+          resp += chunk.toString();
+          if (resp.includes('\r\n\r\n')) {
+            s.removeListener('data', onData);
+            if (/^HTTP\/1\.[01] 200/.test(resp)) resolve(s);
+            else reject(new Error(`HTTP CONNECT 失败: ${resp.split('\r\n')[0]}`));
+          }
+        };
+        s.on('data', onData);
+        s.on('error', reject);
       });
+    }
 
-      upstreamSocket.once('error', reject);
-
-      let buf = Buffer.alloc(0);
-      const onData = (chunk: Buffer) => {
-        buf = Buffer.concat([buf, chunk]);
-        const headerEnd = buf.indexOf('\r\n\r\n');
-        if (headerEnd === -1) return;
-
-        upstreamSocket.removeListener('data', onData);
-        const statusLine = buf.toString('ascii', 0, buf.indexOf('\r\n'));
-        if (!statusLine.includes('200')) {
-          upstreamSocket.destroy();
-          reject(new Error(`HTTP 代理 CONNECT 失败: ${statusLine}`));
-          return;
-        }
-
-        // 将 CONNECT 后的残余数据推回管道
-        const leftover = buf.slice(headerEnd + 4);
-        this.pipeToClient(clientSocket, upstreamSocket, leftover);
-        resolve();
-      };
-
-      upstreamSocket.on('data', onData);
-    });
-  }
-
-  private pipeToClient(clientSocket: net.Socket, upstreamSocket: net.Socket, leftover?: Buffer): void {
-    // 告诉客户端连接已建立
+    // 告知客户端连接成功
     clientSocket.write(Buffer.from([0x05, REP_SUCCESS, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
 
-    if (leftover && leftover.length > 0) {
-      clientSocket.write(leftover);
+    // 将 reader 中已缓冲的数据先发给上游，再开始双向 pipe
+    if (reader['buf'] && reader['buf'].length > 0) {
+      upstreamSocket.write(reader['buf']);
+      reader['buf'] = Buffer.alloc(0);
     }
 
     clientSocket.pipe(upstreamSocket);
     upstreamSocket.pipe(clientSocket);
-
-    const cleanup = () => {
-      clientSocket.destroy();
-      upstreamSocket.destroy();
-    };
+    const cleanup = () => { clientSocket.destroy(); upstreamSocket.destroy(); };
     clientSocket.on('error', cleanup);
     upstreamSocket.on('error', cleanup);
     clientSocket.on('close', () => upstreamSocket.destroy());
     upstreamSocket.on('close', () => clientSocket.destroy());
-  }
-
-  private readBytes(socket: net.Socket, n: number): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      let received = 0;
-
-      const onData = (chunk: Buffer) => {
-        chunks.push(chunk);
-        received += chunk.length;
-        if (received >= n) {
-          socket.removeListener('data', onData);
-          socket.removeListener('error', onError);
-          socket.removeListener('close', onClose);
-          const full = Buffer.concat(chunks);
-          // 若读多了，把多余部分退回到 socket
-          if (full.length > n) {
-            socket.unshift(full.slice(n));
-          }
-          resolve(full.slice(0, n));
-        }
-      };
-
-      const onError = (err: Error) => reject(err);
-      const onClose = () => reject(new Error('socket closed'));
-
-      socket.on('data', onData);
-      socket.once('error', onError);
-      socket.once('close', onClose);
-    });
   }
 }

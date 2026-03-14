@@ -31,6 +31,16 @@ export interface AppSettings {
   clearInvalidOnFetch: boolean; // 获取前是否清除无效代理
 }
 
+export interface SocksAccount {
+  id: string;
+  username: string;
+  password: string;
+  // rotate: 每次请求换一个代理；sticky: 代理失效后才换
+  mode: 'rotate' | 'sticky';
+  enabled: boolean;
+  createdAt: string;
+}
+
 export interface ProxyFilter {
   protocol?: 'http' | 'socks';
   country?: string;

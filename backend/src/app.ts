@@ -12,6 +12,8 @@ import { FetcherService } from './services/FetcherService';
 import { SettingsService } from './services/SettingsService';
 import { SchedulerService } from './services/SchedulerService';
 import { SocksServerService } from './services/SocksServerService';
+import { SocksAccountService } from './services/SocksAccountService';
+import { createSocksAccountRoutes } from './routes/socksAccountRoutes';
 
 import { createProxyRoutes } from './routes/proxyRoutes';
 import { createSourceRoutes } from './routes/sourceRoutes';
@@ -34,8 +36,9 @@ const validatorService = new ValidatorService();
 const fetcherService = new FetcherService(proxyService, sourceService);
 const settingsService = new SettingsService();
 const schedulerService = new SchedulerService(proxyService, validatorService, fetcherService, settingsService);
+const socksAccountService = new SocksAccountService();
 const SOCKS_PORT = Number(process.env.SOCKS_PORT) || 1080;
-const socksServerService = new SocksServerService(proxyService, SOCKS_PORT);
+const socksServerService = new SocksServerService(proxyService, socksAccountService, SOCKS_PORT);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -56,6 +59,7 @@ app.use('/api/proxies', authMiddleware, createProxyRoutes(proxyService));
 app.use('/api/sources', authMiddleware, createSourceRoutes(sourceService, fetcherService));
 app.use('/api/stats', authMiddleware, createStatsRoutes(proxyService));
 app.use('/api/settings', authMiddleware, createSettingsRoutes(settingsService, schedulerService, validatorService));
+app.use('/api/socks-accounts', authMiddleware, createSocksAccountRoutes(socksAccountService));
 
 app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
   try {
