@@ -11,6 +11,7 @@ import { ValidatorService } from './services/ValidatorService';
 import { FetcherService } from './services/FetcherService';
 import { SettingsService } from './services/SettingsService';
 import { SchedulerService } from './services/SchedulerService';
+import { SocksServerService } from './services/SocksServerService';
 
 import { createProxyRoutes } from './routes/proxyRoutes';
 import { createSourceRoutes } from './routes/sourceRoutes';
@@ -33,6 +34,8 @@ const validatorService = new ValidatorService();
 const fetcherService = new FetcherService(proxyService, sourceService);
 const settingsService = new SettingsService();
 const schedulerService = new SchedulerService(proxyService, validatorService, fetcherService, settingsService);
+const SOCKS_PORT = Number(process.env.SOCKS_PORT) || 1080;
+const socksServerService = new SocksServerService(proxyService, SOCKS_PORT);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -165,6 +168,8 @@ async function startServer() {
 
     await schedulerService.start();
     console.log('调度器启动完成');
+
+    await socksServerService.start();
 
     app.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);
