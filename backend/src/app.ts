@@ -184,18 +184,19 @@ async function startServer() {
   }
 }
 
-process.on('SIGINT', async () => {
+async function shutdown() {
   console.log('\n正在关闭服务器...');
   schedulerService.stop();
-  await closeDatabase();
+  socksServerService.stop();
+  try {
+    await closeDatabase();
+  } catch {
+    // ignore
+  }
   process.exit(0);
-});
+}
 
-process.on('SIGTERM', async () => {
-  console.log('\n正在关闭服务器...');
-  schedulerService.stop();
-  await closeDatabase();
-  process.exit(0);
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 startServer();
