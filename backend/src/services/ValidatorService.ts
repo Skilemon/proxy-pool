@@ -27,7 +27,7 @@ export class ValidatorService {
           ? `${proxy.username}:${proxy.password}@`
           : '';
         const proxyUrl = `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`;
-        const agent = new SocksProxyAgent(proxyUrl);
+        const agent = new SocksProxyAgent(proxyUrl, { timeout: this.timeout });
         requestConfig.httpAgent = agent;
         requestConfig.httpsAgent = agent;
         requestConfig.proxy = false;
@@ -46,7 +46,13 @@ export class ValidatorService {
         requestConfig.proxy = proxyConfig;
       }
 
-      await axios.get(this.testUrl, requestConfig);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeout);
+      try {
+        await axios.get(this.testUrl, { ...requestConfig, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
 
       const responseTime = Date.now() - startTime;
 
