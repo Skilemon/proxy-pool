@@ -62,6 +62,13 @@ export class FetcherService {
   private parseProxies(data: any): Array<{ protocol: 'http' | 'https' | 'socks4' | 'socks5'; host: string; port: number; username?: string; password?: string; country?: string; isValid: boolean }> {
     const proxies: Array<any> = [];
 
+    // 支持 { data: { proxy_list: [...] } } 包装格式（如站大爷源）
+    if (typeof data === 'object' && data !== null &&
+        typeof data.data === 'object' && data.data !== null &&
+        Array.isArray(data.data.proxy_list)) {
+      return this.parseProxies(data.data.proxy_list);
+    }
+
     // 支持 { data: [...] } 包装格式（如皮卡丘源）
     const list = (typeof data === 'object' && data !== null && Array.isArray(data.data))
       ? data.data

@@ -114,22 +114,35 @@ export async function initDatabase(): Promise<void> {
   await initDefaultSources(database);
 }
 
+const DEFAULT_SOURCES = [
+  {
+    name: '皮卡丘',
+    url: 'https://charlespikachu.github.io/freeproxy/proxies.json'
+  },
+  {
+    name: '站大爷',
+    url: 'http://www.zdopen.com/FreeProxy/Get/?app_id=202603131809333426&akey=b6f2bb2312fe99ff&dalu=1&lastcheck_type=2&sleep_type=1&return_type=3'
+  }
+];
+
 async function initDefaultSources(database: AsyncDatabase): Promise<void> {
-  const existing = await database.get('SELECT id FROM sources WHERE url = ?', 'https://charlespikachu.github.io/freeproxy/proxies.json');
-  if (!existing) {
-    const { randomUUID } = await import('node:crypto');
-    await database.run(
-      'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-      randomUUID(),
-      '皮卡丘',
-      'https://charlespikachu.github.io/freeproxy/proxies.json',
-      1,
-      1,
-      new Date().toISOString()
-    );
-  } else {
-    // 迁移：确保旧记录的 isDefault 字段已设置
-    await database.run('UPDATE sources SET isDefault = 1 WHERE url = ?', 'https://charlespikachu.github.io/freeproxy/proxies.json');
+  const { randomUUID } = await import('node:crypto');
+  for (const source of DEFAULT_SOURCES) {
+    const existing = await database.get('SELECT id FROM sources WHERE url = ?', source.url);
+    if (!existing) {
+      await database.run(
+        'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        randomUUID(),
+        source.name,
+        source.url,
+        1,
+        1,
+        new Date().toISOString()
+      );
+    } else {
+      // 迁移：确保旧记录的 isDefault 字段已设置
+      await database.run('UPDATE sources SET isDefault = 1 WHERE url = ?', source.url);
+    }
   }
 }
 
