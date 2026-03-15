@@ -115,6 +115,8 @@ export class SchedulerService {
       }
 
       const settings = await this.settingsService.getSettings();
+      this.validatorService.setTestUrl(settings.testUrl);
+      this.validatorService.setTimeout(settings.validationTimeout);
       let validCount = 0;
       const onResult = async (result: Awaited<ReturnType<typeof this.validatorService.validateProxy>>) => {
         await this.proxyService.updateProxyValidation(result.proxyId, result.isValid, result.responseTime);

@@ -246,26 +246,37 @@ export class SocksServerService {
       });
       upstreamSocket = result.socket;
     } else {
-      // HTTP/HTTPS 上游：发 CONNECT 隧道
-      upstreamSocket = await new Promise<net.Socket>((resolve, reject) => {
-        const s = net.createConnection({ host: upstream.host, port: upstream.port }, () => {
-          const auth = upstream.username && upstream.password
-            ? `Proxy-Authorization: Basic ${Buffer.from(`${upstream.username}:${upstream.password}`).toString('base64')}\r\n`
-            : '';
-          s.write(`CONNECT ${destHost}:${destPort} HTTP/1.1\r\nHost: ${destHost}:${destPort}\r\n${auth}\r\n`);
+      // HTTP 上游代理
+      // 对 HTTPS 目标（443 端口）使用 CONNECT 隧道
+      // 对 HTTP 目标（非 443）直接连接到上游代理，透传 TCP 流量
+      if (destPort === 443) {
+        upstreamSocket = await new Promise<net.Socket>((resolve, reject) => {
+          const s = net.createConnection({ host: upstream.host, port: upstream.port }, () => {
+            const auth = upstream.username && upstream.password
+              ? `Proxy-Authorization: Basic ${Buffer.from(`${upstream.username}:${upstream.password}`).toString('base64')}\r\n`
+              : '';
+            s.write(`CONNECT ${destHost}:${destPort} HTTP/1.1\r\nHost: ${destHost}:${destPort}\r\n${auth}\r\n`);
+          });
+          let resp = '';
+          const onData = (chunk: Buffer) => {
+            resp += chunk.toString();
+            if (resp.includes('\r\n\r\n')) {
+              s.removeListener('data', onData);
+              if (/^HTTP\/1\.[01] 200/.test(resp)) resolve(s);
+              else reject(new Error(`HTTP CONNECT 失败: ${resp.split('\r\n')[0]}`));
+            }
+          };
+          s.on('data', onData);
+          s.on('error', reject);
         });
-        let resp = '';
-        const onData = (chunk: Buffer) => {
-          resp += chunk.toString();
-          if (resp.includes('\r\n\r\n')) {
-            s.removeListener('data', onData);
-            if (/^HTTP\/1\.[01] 200/.test(resp)) resolve(s);
-            else reject(new Error(`HTTP CONNECT 失败: ${resp.split('\r\n')[0]}`));
-          }
-        };
-        s.on('data', onData);
-        s.on('error', reject);
-      });
+      } else {
+        // HTTP 目标：直接连接上游代理，客户端的 HTTP 请求会透传过去
+        // HTTP 代理需要客户端发送带完整 URL 的请求（绝对路径），这由客户端负责
+        upstreamSocket = await new Promise<net.Socket>((resolve, reject) => {
+          const s = net.createConnection({ host: upstream.host, port: upstream.port }, () => resolve(s));
+          s.on('error', reject);
+        });
+      }
     }
 
     // 告知客户端连接成功
