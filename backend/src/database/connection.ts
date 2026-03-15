@@ -126,23 +126,20 @@ const DEFAULT_SOURCES = [
 ];
 
 async function initDefaultSources(database: AsyncDatabase): Promise<void> {
+  const count = await database.get('SELECT COUNT(*) as cnt FROM sources');
+  if (count && count.cnt > 0) return;
+
   const { randomUUID } = await import('node:crypto');
   for (const source of DEFAULT_SOURCES) {
-    const existing = await database.get('SELECT id FROM sources WHERE url = ?', source.url);
-    if (!existing) {
-      await database.run(
-        'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-        randomUUID(),
-        source.name,
-        source.url,
-        1,
-        1,
-        new Date().toISOString()
-      );
-    } else {
-      // 迁移：确保旧记录的 isDefault 字段已设置
-      await database.run('UPDATE sources SET isDefault = 1 WHERE url = ?', source.url);
-    }
+    await database.run(
+      'INSERT INTO sources (id, name, url, enabled, isDefault, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      randomUUID(),
+      source.name,
+      source.url,
+      1,
+      1,
+      new Date().toISOString()
+    );
   }
 }
 
