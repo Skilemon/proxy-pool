@@ -110,6 +110,13 @@ export async function initDatabase(): Promise<void> {
     // 字段已存在，忽略
   }
 
+  // 迁移：为旧数据库的 socks_accounts 表添加 maxDelay 字段
+  try {
+    await database.exec(`ALTER TABLE socks_accounts ADD COLUMN maxDelay INTEGER`);
+  } catch {
+    // 字段已存在，忽略
+  }
+
   await initDefaultSettings(database);
   await initDefaultSources(database);
 }

@@ -38,6 +38,7 @@ export interface SocksAccount {
   // rotate: 每次请求换一个代理；sticky: 代理失效后才换
   mode: 'rotate' | 'sticky';
   enabled: boolean;
+  maxDelay?: number; // 最大延迟要求（毫秒），不设则不限制
   createdAt: string;
 }
 

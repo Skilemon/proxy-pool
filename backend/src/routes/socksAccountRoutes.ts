@@ -13,18 +13,19 @@ export function createSocksAccountRoutes(socksAccountService: SocksAccountServic
 
   router.post('/', async (req, res, next) => {
     try {
-      const { username, password, mode } = req.body;
+      const { username, password, mode, maxDelay } = req.body;
       if (!username || !password || !['rotate', 'sticky'].includes(mode)) {
         return res.status(400).json({ success: false, error: '参数无效' });
       }
-      const account = await socksAccountService.create(username, password, mode);
+      const parsedMaxDelay = maxDelay !== undefined && maxDelay !== null && maxDelay !== '' ? Number(maxDelay) : undefined;
+      const account = await socksAccountService.create(username, password, mode, parsedMaxDelay);
       res.json({ success: true, data: account });
     } catch (e: any) { next(e); }
   });
 
   router.put('/:id', async (req, res, next) => {
     try {
-      const { password, mode, enabled } = req.body;
+      const { password, mode, enabled, maxDelay } = req.body;
       const updates: any = {};
       if (password !== undefined) updates.password = password;
       if (mode !== undefined) {
@@ -32,6 +33,7 @@ export function createSocksAccountRoutes(socksAccountService: SocksAccountServic
         updates.mode = mode;
       }
       if (enabled !== undefined) updates.enabled = Boolean(enabled);
+      if ('maxDelay' in req.body) updates.maxDelay = maxDelay !== undefined && maxDelay !== null && maxDelay !== '' ? Number(maxDelay) : undefined;
       await socksAccountService.update(req.params.id, updates);
       res.json({ success: true });
     } catch (e) { next(e); }

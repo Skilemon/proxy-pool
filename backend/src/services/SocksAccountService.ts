@@ -16,7 +16,7 @@ export class SocksAccountService {
     return { ...row, enabled: Boolean(row.enabled) };
   }
 
-  async create(username: string, password: string, mode: 'rotate' | 'sticky'): Promise<SocksAccount> {
+  async create(username: string, password: string, mode: 'rotate' | 'sticky', maxDelay?: number): Promise<SocksAccount> {
     const db = getDatabase();
     const existing = await db.get('SELECT id FROM socks_accounts WHERE username = ?', username);
     if (existing) throw new Error('用户名已存在');
@@ -24,19 +24,20 @@ export class SocksAccountService {
     const id = generateId();
     const createdAt = new Date().toISOString();
     await db.run(
-      'INSERT INTO socks_accounts (id, username, password, mode, enabled, createdAt) VALUES (?, ?, ?, ?, 1, ?)',
-      [id, username, password, mode, createdAt]
+      'INSERT INTO socks_accounts (id, username, password, mode, enabled, maxDelay, createdAt) VALUES (?, ?, ?, ?, 1, ?, ?)',
+      [id, username, password, mode, maxDelay ?? null, createdAt]
     );
-    return { id, username, password, mode, enabled: true, createdAt };
+    return { id, username, password, mode, enabled: true, maxDelay, createdAt };
   }
 
-  async update(id: string, updates: Partial<Pick<SocksAccount, 'password' | 'mode' | 'enabled'>>): Promise<void> {
+  async update(id: string, updates: Partial<Pick<SocksAccount, 'password' | 'mode' | 'enabled' | 'maxDelay'>>): Promise<void> {
     const db = getDatabase();
     const fields: string[] = [];
     const values: any[] = [];
     if (updates.password !== undefined) { fields.push('password = ?'); values.push(updates.password); }
     if (updates.mode !== undefined) { fields.push('mode = ?'); values.push(updates.mode); }
     if (updates.enabled !== undefined) { fields.push('enabled = ?'); values.push(updates.enabled ? 1 : 0); }
+    if ('maxDelay' in updates) { fields.push('maxDelay = ?'); values.push(updates.maxDelay ?? null); }
     if (fields.length === 0) return;
     values.push(id);
     await db.run(`UPDATE socks_accounts SET ${fields.join(', ')} WHERE id = ?`, values);
