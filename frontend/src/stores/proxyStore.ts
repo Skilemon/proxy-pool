@@ -1,35 +1,53 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { ProxyEntry } from '@/types';
 import { api } from '@/api/client';
 
 export const useProxyStore = defineStore('proxy', () => {
   const proxies = ref<ProxyEntry[]>([]);
+  const total = ref(0);
   const loading = ref(false);
   const selectedIds = ref<string[]>([]);
+
+  // 分页与筛选参数
+  const currentPage = ref(1);
+  const pageSize = ref(20);
+  const protocolFilter = ref('all');
+  const statusFilter = ref('all');
+  const responseTimeFilter = ref('all');
 
   async function fetchProxies() {
     loading.value = true;
     try {
-      proxies.value = await api.getProxies();
+      const maxResponseTime = responseTimeFilter.value !== 'all' ? parseInt(responseTimeFilter.value) : undefined;
+      const result = await api.getProxies({
+        page: currentPage.value,
+        pageSize: pageSize.value,
+        protocol: protocolFilter.value,
+        status: statusFilter.value,
+        maxResponseTime
+      });
+      proxies.value = result.data;
+      total.value = result.total;
     } finally {
       loading.value = false;
     }
   }
 
   async function addProxy(proxy: Omit<ProxyEntry, 'id' | 'createdAt'>) {
-    const newProxy = await api.addProxy(proxy);
-    proxies.value.unshift(newProxy);
+    await api.addProxy(proxy);
+    await fetchProxies();
   }
 
   async function deleteProxies(ids: string[]) {
     await api.deleteProxies(ids);
-    proxies.value = proxies.value.filter(p => !ids.includes(p.id));
     selectedIds.value = selectedIds.value.filter(id => !ids.includes(id));
+    await fetchProxies();
   }
 
   async function importProxies(content: string) {
     const result = await api.importProxies(content);
+    currentPage.value = 1;
     await fetchProxies();
     return result;
   }
@@ -61,10 +79,42 @@ export const useProxyStore = defineStore('proxy', () => {
     selectedIds.value = [];
   }
 
+  const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
+
+  const visiblePages = computed(() => {
+    const pages: number[] = [];
+    const total_ = totalPages.value;
+    const current = currentPage.value;
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total_, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  });
+
+  // 筛选条件或每页条数变化时重置到第一页并重新拉取
+  watch([statusFilter, protocolFilter, responseTimeFilter, pageSize], () => {
+    currentPage.value = 1;
+    fetchProxies();
+  });
+
+  // 翻页时重新拉取
+  watch(currentPage, () => {
+    fetchProxies();
+  });
+
   return {
     proxies,
+    total,
     loading,
     selectedIds,
+    currentPage,
+    pageSize,
+    protocolFilter,
+    statusFilter,
+    responseTimeFilter,
+    totalPages,
+    visiblePages,
     fetchProxies,
     addProxy,
     deleteProxies,

@@ -6,8 +6,20 @@ export function createProxyRoutes(proxyService: ProxyService): Router {
 
   router.get('/', async (req, res, next) => {
     try {
-      const proxies = await proxyService.getAllProxies();
-      res.json({ success: true, data: proxies });
+      const page = Math.max(1, parseInt(String(req.query.page || '1')));
+      const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query.pageSize || '20'))));
+      const protocol = String(req.query.protocol || 'all');
+      const status = String(req.query.status || 'all') as 'valid' | 'invalid' | 'all';
+      const maxResponseTime = req.query.maxResponseTime ? parseInt(String(req.query.maxResponseTime)) : undefined;
+
+      // 兼容旧的无分页调用（不传 page 参数时返回全量数据）
+      if (!req.query.page && !req.query.pageSize && !req.query.protocol && !req.query.status && !req.query.maxResponseTime) {
+        const proxies = await proxyService.getAllProxies();
+        return res.json({ success: true, data: proxies });
+      }
+
+      const result = await proxyService.getProxiesPaged({ page, pageSize, protocol, status, maxResponseTime });
+      res.json({ success: true, data: result.data, total: result.total });
     } catch (error) {
       next(error);
     }

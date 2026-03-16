@@ -71,7 +71,7 @@
       <div class="mb-4 flex flex-wrap gap-4 items-center">
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-600 dark:text-slate-400">协议:</label>
-          <select v-model="protocolFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+          <select v-model="proxyStore.protocolFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
             <option value="all">全部</option>
             <option value="http">HTTP</option>
             <option value="https">HTTPS</option>
@@ -81,7 +81,7 @@
         </div>
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-600 dark:text-slate-400">可用性:</label>
-          <select v-model="statusFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+          <select v-model="proxyStore.statusFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
             <option value="all">全部</option>
             <option value="valid">有效</option>
             <option value="invalid">无效</option>
@@ -89,7 +89,7 @@
         </div>
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-600 dark:text-slate-400">响应时间:</label>
-          <select v-model="responseTimeFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+          <select v-model="proxyStore.responseTimeFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
             <option value="all">全部</option>
             <option value="500">500ms 以内</option>
             <option value="1000">1000ms 以内</option>
@@ -98,7 +98,7 @@
           </select>
         </div>
         <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">
-          共 {{ filteredProxies.length }} 条
+          共 {{ proxyStore.total }} 条
         </span>
       </div>
 
@@ -123,7 +123,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="proxy in paginatedProxies" :key="proxy.id" class="border-b border-slate-200 dark:border-slate-700">
+            <tr v-for="proxy in proxyStore.proxies" :key="proxy.id" class="border-b border-slate-200 dark:border-slate-700">
               <td class="p-3">
                 <input
                   type="checkbox"
@@ -162,16 +162,16 @@
           </tbody>
         </table>
 
-        <div v-if="filteredProxies.length === 0" class="text-center py-8 text-slate-500 dark:text-slate-400">
+        <div v-if="proxyStore.proxies.length === 0 && !proxyStore.loading" class="text-center py-8 text-slate-500 dark:text-slate-400">
           暂无代理数据
         </div>
       </div>
 
       <!-- 分页控件 -->
-      <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
+      <div v-if="proxyStore.totalPages > 1" class="mt-4 flex items-center justify-between">
         <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <span>每页</span>
-          <select v-model="pageSize" class="px-2 py-1 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+          <select v-model="proxyStore.pageSize" class="px-2 py-1 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
             <option :value="10">10</option>
             <option :value="20">20</option>
             <option :value="50">50</option>
@@ -181,37 +181,37 @@
         </div>
         <div class="flex items-center gap-1">
           <button
-            @click="currentPage = 1"
-            :disabled="currentPage === 1"
+            @click="proxyStore.currentPage = 1"
+            :disabled="proxyStore.currentPage === 1"
             class="px-2 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
           >«</button>
           <button
-            @click="currentPage--"
-            :disabled="currentPage === 1"
+            @click="proxyStore.currentPage--"
+            :disabled="proxyStore.currentPage === 1"
             class="px-3 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
           >‹</button>
           <button
-            v-for="page in visiblePages"
+            v-for="page in proxyStore.visiblePages"
             :key="page"
-            @click="currentPage = page"
+            @click="proxyStore.currentPage = page"
             class="px-3 py-1 rounded border text-sm"
-            :class="page === currentPage
+            :class="page === proxyStore.currentPage
               ? 'bg-blue-500 text-white border-blue-500'
               : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'"
           >{{ page }}</button>
           <button
-            @click="currentPage++"
-            :disabled="currentPage === totalPages"
+            @click="proxyStore.currentPage++"
+            :disabled="proxyStore.currentPage === proxyStore.totalPages"
             class="px-3 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
           >›</button>
           <button
-            @click="currentPage = totalPages"
-            :disabled="currentPage === totalPages"
+            @click="proxyStore.currentPage = proxyStore.totalPages"
+            :disabled="proxyStore.currentPage === proxyStore.totalPages"
             class="px-2 py-1 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white"
           >»</button>
         </div>
         <span class="text-sm text-slate-600 dark:text-slate-400">
-          第 {{ currentPage }} / {{ totalPages }} 页
+          第 {{ proxyStore.currentPage }} / {{ proxyStore.totalPages }} 页
         </span>
       </div>
     </div>
@@ -219,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useProxyStore } from '@/stores/proxyStore';
 import { api } from '@/api/client';
 import { useAppStore } from '@/stores/appStore';
@@ -231,11 +231,7 @@ const showAddForm = ref(false);
 const showImportForm = ref(false);
 const importContent = ref('');
 const importProtocol = ref<'' | 'http' | 'https' | 'socks4' | 'socks5'>('');
-const statusFilter = ref<'all' | 'valid' | 'invalid'>('all');
-const protocolFilter = ref<'all' | 'http' | 'https' | 'socks4' | 'socks5'>('all');
-const responseTimeFilter = ref<'all' | '500' | '1000' | '2000' | '5000'>('all');
-const currentPage = ref(1);
-const pageSize = ref(20);
+
 
 const newProxy = ref({
   protocol: 'http' as 'http' | 'https' | 'socks4' | 'socks5',
@@ -247,55 +243,20 @@ const newProxy = ref({
   isValid: false
 });
 
-const filteredProxies = computed(() => {
-  return proxyStore.proxies.filter(proxy => {
-    if (protocolFilter.value !== 'all' && proxy.protocol !== protocolFilter.value) return false;
-    if (statusFilter.value === 'valid' && !proxy.isValid) return false;
-    if (statusFilter.value === 'invalid' && proxy.isValid) return false;
-    if (responseTimeFilter.value !== 'all') {
-      const limit = parseInt(responseTimeFilter.value);
-      if (!proxy.responseTime || proxy.responseTime > limit) return false;
-    }
-    return true;
-  });
-});
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / pageSize.value)));
-
-const paginatedProxies = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  return filteredProxies.value.slice(start, start + pageSize.value);
-});
-
-const visiblePages = computed(() => {
-  const pages: number[] = [];
-  const total = totalPages.value;
-  const current = currentPage.value;
-  let start = Math.max(1, current - 2);
-  let end = Math.min(total, start + 4);
-  if (end - start < 4) start = Math.max(1, end - 4);
-  for (let i = start; i <= end; i++) pages.push(i);
-  return pages;
-});
-
-// 筛选条件或每页条数变化时重置到第一页
-watch([statusFilter, protocolFilter, responseTimeFilter, pageSize], () => {
-  currentPage.value = 1;
-});
 
 const isAllSelected = computed(() => {
-  return paginatedProxies.value.length > 0 &&
-    paginatedProxies.value.every(proxy => proxyStore.selectedIds.includes(proxy.id));
+  return proxyStore.proxies.length > 0 &&
+    proxyStore.proxies.every(proxy => proxyStore.selectedIds.includes(proxy.id));
 });
 
 function toggleSelectAll() {
   if (isAllSelected.value) {
-    const pageIds = paginatedProxies.value.map(p => p.id);
+    const pageIds = proxyStore.proxies.map(p => p.id);
     pageIds.forEach(id => {
       if (proxyStore.selectedIds.includes(id)) proxyStore.toggleSelection(id);
     });
   } else {
-    paginatedProxies.value.forEach(proxy => {
+    proxyStore.proxies.forEach(proxy => {
       if (!proxyStore.selectedIds.includes(proxy.id)) proxyStore.toggleSelection(proxy.id);
     });
   }
@@ -406,9 +367,8 @@ async function handleDeleteSelected() {
   try {
     await proxyStore.deleteProxies(proxyStore.selectedIds);
     appStore.showToast('删除成功', 'success');
-    // 删除后若当前页超出范围则回退
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value;
+    if (proxyStore.currentPage > proxyStore.totalPages) {
+      proxyStore.currentPage = proxyStore.totalPages;
     }
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
@@ -429,8 +389,8 @@ async function handleDeleteSingle(id: string) {
   try {
     await proxyStore.deleteProxies([id]);
     appStore.showToast('删除成功', 'success');
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value;
+    if (proxyStore.currentPage > proxyStore.totalPages) {
+      proxyStore.currentPage = proxyStore.totalPages;
     }
   } catch (error: any) {
     appStore.showToast(error.message, 'error');

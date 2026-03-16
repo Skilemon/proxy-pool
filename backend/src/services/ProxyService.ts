@@ -62,6 +62,48 @@ export class ProxyService {
     }));
   }
 
+  async getProxiesPaged(options: {
+    page: number;
+    pageSize: number;
+    protocol?: string;
+    status?: 'valid' | 'invalid' | 'all';
+    maxResponseTime?: number;
+  }): Promise<{ data: ProxyEntry[]; total: number }> {
+    const db = getDatabase();
+    const { page, pageSize, protocol, status, maxResponseTime } = options;
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (protocol && protocol !== 'all') {
+      conditions.push('protocol = ?');
+      params.push(protocol);
+    }
+    if (status === 'valid') {
+      conditions.push('isValid = 1');
+    } else if (status === 'invalid') {
+      conditions.push('isValid = 0');
+    }
+    if (maxResponseTime) {
+      conditions.push('responseTime IS NOT NULL AND responseTime <= ?');
+      params.push(maxResponseTime);
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countRow = await db.get(`SELECT COUNT(*) as total FROM proxies ${where}`, params);
+    const total = countRow?.total ?? 0;
+
+    const offset = (page - 1) * pageSize;
+    const rows = await db.all(
+      `SELECT * FROM proxies ${where} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
+    );
+
+    return {
+      data: rows.map(row => ({ ...row, isValid: Boolean(row.isValid) })),
+      total
+    };
+  }
+
   async getProxyById(id: string): Promise<ProxyEntry | null> {
     const db = getDatabase();
     const row = await db.get('SELECT * FROM proxies WHERE id = ?', id);

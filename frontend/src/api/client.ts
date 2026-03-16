@@ -43,9 +43,15 @@ class ApiClient {
     await this.client.post('/auth/change-password', { oldPassword, newPassword });
   }
 
-  async getProxies(): Promise<ProxyEntry[]> {
-    const { data } = await this.client.get<ApiResponse<ProxyEntry[]>>('/proxies');
-    return data.data || [];
+  async getProxies(params?: {
+    page?: number;
+    pageSize?: number;
+    protocol?: string;
+    status?: string;
+    maxResponseTime?: number;
+  }): Promise<{ data: ProxyEntry[]; total: number }> {
+    const { data } = await this.client.get<ApiResponse<ProxyEntry[]> & { total?: number }>('/proxies', { params });
+    return { data: data.data || [], total: data.total ?? 0 };
   }
 
   async addProxy(proxy: Omit<ProxyEntry, 'id' | 'createdAt'>): Promise<ProxyEntry> {
