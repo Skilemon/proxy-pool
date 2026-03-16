@@ -52,6 +52,8 @@ export interface SocksAccount {
   mode: 'rotate' | 'sticky';
   enabled: boolean;
   maxDelay?: number;
+  countryFilter?: string; // 国家代码，多个用逗号分隔
+  countryFilterMode?: 'include' | 'exclude'; // include=只用这些国家，exclude=排除这些国家
   createdAt: string;
 }
 

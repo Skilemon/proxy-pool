@@ -16,7 +16,7 @@
       <!-- 新增表单 -->
       <div v-if="showForm" class="mb-6 p-4 bg-slate-50 dark:bg-slate-700 rounded-lg">
         <h3 class="text-lg font-semibold mb-4 text-slate-900 dark:text-white">新建账户</h3>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
           <input v-model="form.username" placeholder="用户名" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white" />
           <input v-model="form.password" placeholder="密码" type="password" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white" />
           <select v-model="form.mode" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white">
@@ -30,6 +30,13 @@
             <option :value="2000">2000ms 以内</option>
             <option :value="3000">3000ms 以内</option>
           </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <select v-model="form.countryFilterMode" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white">
+            <option value="include">国家 =（只用）</option>
+            <option value="exclude">国家 ≠（排除）</option>
+          </select>
+          <input v-model="form.countryFilter" placeholder="国家代码，多个用逗号分隔，如 CN,US" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-600 dark:text-white md:col-span-2" />
           <button @click="handleCreate" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">提交</button>
         </div>
       </div>
@@ -43,6 +50,7 @@
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">密码</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">代理模式</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">延迟要求</th>
+              <th class="p-3 text-left text-slate-700 dark:text-slate-300">国家筛选</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">状态</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">创建时间</th>
               <th class="p-3 text-left text-slate-700 dark:text-slate-300">操作</th>
@@ -82,6 +90,24 @@
                 </select>
               </td>
               <td class="p-3">
+                <div class="flex items-center gap-1">
+                  <select
+                    :value="acc.countryFilterMode ?? 'include'"
+                    @change="handleCountryFilterChange(acc, acc.countryFilter ?? '', ($event.target as HTMLSelectElement).value as 'include' | 'exclude')"
+                    class="px-2 py-1 border rounded text-xs bg-white dark:bg-slate-600 dark:text-white"
+                  >
+                    <option value="include">只用</option>
+                    <option value="exclude">排除</option>
+                  </select>
+                  <input
+                    :value="acc.countryFilter ?? ''"
+                    @change="handleCountryFilterChange(acc, ($event.target as HTMLInputElement).value, acc.countryFilterMode ?? 'include')"
+                    placeholder="如 CN,US"
+                    class="px-2 py-1 border rounded text-xs bg-white dark:bg-slate-600 dark:text-white w-24"
+                  />
+                </div>
+              </td>
+              <td class="p-3">
                 <button
      @click="handleToggleEnabled(acc)"
                   class="px-2 py-1 rounded text-sm"
@@ -96,7 +122,7 @@
               </td>
             </tr>
             <tr v-if="accounts.length === 0">
-              <td colspan="7" class="p-6 text-center text-slate-400">暂无账户，请点击「添加账户」创建</td>
+              <td colspan="8" class="p-6 text-center text-slate-400">暂无账户，请点击「添加账户」创建</td>
             </tr>
           </tbody>
         </table>
@@ -116,6 +142,8 @@ interface SocksAccount {
   mode: 'rotate' | 'sticky';
   enabled: boolean;
   maxDelay?: number;
+  countryFilter?: string;
+  countryFilterMode?: 'include' | 'exclude';
   createdAt: string;
 }
 
@@ -123,7 +151,7 @@ const appStore = useAppStore();
 const accounts = ref<SocksAccount[]>([]);
 const showForm = ref(false);
 const visiblePasswords = ref(new Set<string>());
-const form = ref({ username: '', password: '', mode: 'rotate' as 'rotate' | 'sticky', maxDelay: undefined as number | undefined });
+const form = ref({ username: '', password: '', mode: 'rotate' as 'rotate' | 'sticky', maxDelay: undefined as number | undefined, countryFilter: '', countryFilterMode: 'include' as 'include' | 'exclude' });
 
 const socksPort = import.meta.env.VITE_SOCKS_PORT || '1080';
 
@@ -152,7 +180,7 @@ async function handleCreate() {
     const data = await res.json();
     if (data.success) {
       accounts.value.unshift(data.data);
-      form.value = { username: '', password: '', mode: 'rotate' };
+      form.value = { username: '', password: '', mode: 'rotate', maxDelay: undefined, countryFilter: '', countryFilterMode: 'include' };
       showForm.value = false;
       appStore.showToast('账户创建成功', 'success');
     } else {
@@ -189,6 +217,22 @@ async function handleMaxDelayChange(acc: SocksAccount, value: string) {
     });
     acc.maxDelay = maxDelay;
     appStore.showToast('延迟要求已更新', 'success');
+  } catch {
+    appStore.showToast('更新失败', 'error');
+  }
+}
+
+async function handleCountryFilterChange(acc: SocksAccount, countryFilter: string, countryFilterMode: 'include' | 'exclude') {
+  try {
+    const token = localStorage.getItem('token');
+    await fetch(`/api/socks-accounts/${acc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ countryFilter: countryFilter.trim() || null, countryFilterMode })
+    });
+    acc.countryFilter = countryFilter.trim() || undefined;
+    acc.countryFilterMode = countryFilterMode;
+    appStore.showToast('国家筛选已更新', 'success');
   } catch {
     appStore.showToast('更新失败', 'error');
   }

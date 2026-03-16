@@ -160,7 +160,7 @@ export class SocksServerService {
       const { validationTimeout } = await this.settingsService.getSettings();
       let connected = false;
       let hasAny = false;
-      for await (const upstream of this.pickCandidates(username, account.mode, account.maxDelay)) {
+      for await (const upstream of this.pickCandidates(username, account.mode, account.maxDelay, account.countryFilter, account.countryFilterMode)) {
         hasAny = true;
         console.log(`[SOCKS5] 用户=${username} 模式=${account.mode} 上游=${upstream.protocol}://${upstream.host}:${upstream.port} 目标=${destHost}:${destPort}`);
         try {
@@ -190,7 +190,7 @@ export class SocksServerService {
     }
   }
 
-  private async *pickCandidates(username: string, mode: 'rotate' | 'sticky', maxDelay?: number): AsyncGenerator<ProxyEntry> {
+  private async *pickCandidates(username: string, mode: 'rotate' | 'sticky', maxDelay?: number, countryFilter?: string, countryFilterMode?: 'include' | 'exclude'): AsyncGenerator<ProxyEntry> {
     if (mode === 'sticky') {
       const current = this.stickyMap.get(username);
       if (current) { yield current; return; }
@@ -198,7 +198,7 @@ export class SocksServerService {
     const BATCH = 10;
     const tried = new Set<string>();
     while (true) {
-      const batch = await this.proxyService.getValidProxyCandidates(undefined, maxDelay, BATCH, [...tried]);
+      const batch = await this.proxyService.getValidProxyCandidates(undefined, maxDelay, BATCH, [...tried], countryFilter, countryFilterMode);
       if (batch.length === 0) return;
       for (const proxy of batch) {
         tried.add(proxy.id);

@@ -140,7 +140,7 @@ export class ProxyService {
     return { ...row, isValid: Boolean(row.isValid) };
   }
 
-  async getValidProxyCandidates(protocol?: string, maxResponseTime?: number, limit: number = 10, excludeIds: string[] = []): Promise<ProxyEntry[]> {
+  async getValidProxyCandidates(protocol?: string, maxResponseTime?: number, limit: number = 10, excludeIds: string[] = [], countryFilter?: string, countryFilterMode?: 'include' | 'exclude'): Promise<ProxyEntry[]> {
     const db = getDatabase();
     let query = 'SELECT * FROM proxies WHERE isValid = 1';
     const params: any[] = [];
@@ -153,6 +153,19 @@ export class ProxyService {
     if (maxResponseTime !== undefined) {
       query += ' AND responseTime <= ?';
       params.push(maxResponseTime);
+    }
+
+    if (countryFilter) {
+      const codes = countryFilter.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+      if (codes.length > 0) {
+        const placeholders = codes.map(() => '?').join(',');
+        if (countryFilterMode === 'exclude') {
+          query += ` AND (country IS NULL OR UPPER(country) NOT IN (${placeholders}))`;
+        } else {
+          query += ` AND UPPER(country) IN (${placeholders})`;
+        }
+        params.push(...codes);
+      }
     }
 
     if (excludeIds.length > 0) {

@@ -40,6 +40,8 @@ export interface SocksAccount {
   mode: 'rotate' | 'sticky';
   enabled: boolean;
   maxDelay?: number; // 最大延迟要求（毫秒），不设则不限制
+  countryFilter?: string; // 国家代码，多个用逗号分隔
+  countryFilterMode?: 'include' | 'exclude'; // include=只用这些国家，exclude=排除这些国家
   createdAt: string;
 }
 
