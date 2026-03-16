@@ -54,6 +54,10 @@ export class SourceService {
     }
 
     if (updates.url !== undefined) {
+      const duplicate = await db.get('SELECT id FROM sources WHERE url = ? AND id != ?', updates.url, id);
+      if (duplicate) {
+        throw new Error('该 URL 已存在，请勿重复添加');
+      }
       fields.push('url = ?');
       values.push(updates.url);
     }
