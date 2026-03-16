@@ -64,6 +64,19 @@
           />
         </div>
 
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            GeoIP 数据库下载加速地址
+          </label>
+          <input
+            v-model="localSettings.geoipProxyUrl"
+            type="text"
+            placeholder="留空则直连下载，例如：https://gh-proxy.org/"
+            class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white"
+          />
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">配置后实际下载地址为：{加速地址}/{原始地址}，仅在首次自动下载数据库时生效</p>
+        </div>
+
         <div class="flex items-center justify-between py-2">
           <div>
             <div class="text-sm font-medium text-slate-700 dark:text-slate-300">获取前清除无效代理</div>
@@ -148,7 +161,8 @@ const localSettings = ref<AppSettings>({
   validationTimeout: 5000,
   validationConcurrency: 10,
   testUrl: '',
-  clearInvalidOnFetch: false
+  clearInvalidOnFetch: false,
+  geoipProxyUrl: ''
 });
 
 const oldPassword = ref('');

@@ -29,6 +29,7 @@ export interface AppSettings {
   validationConcurrency: number;
   testUrl: string;
   clearInvalidOnFetch: boolean; // 获取前是否清除无效代理
+  geoipProxyUrl?: string; // GeoIP 数据库下载加速地址
 }
 
 export interface SocksAccount {

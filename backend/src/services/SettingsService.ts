@@ -9,7 +9,8 @@ export class SettingsService {
       validationTimeout: 5000,
       validationConcurrency: 10,
       testUrl: 'http://www.apple.com/library/test/success.html',
-      clearInvalidOnFetch: false
+      clearInvalidOnFetch: false,
+      geoipProxyUrl: ''
     };
   }
 
@@ -28,7 +29,8 @@ export class SettingsService {
       validationTimeout: parseInt(settings.validationTimeout || '5000', 10),
       validationConcurrency: parseInt(settings.validationConcurrency || '10', 10),
       testUrl: settings.testUrl || 'http://www.apple.com/library/test/success.html',
-      clearInvalidOnFetch: settings.clearInvalidOnFetch === 'true'
+      clearInvalidOnFetch: settings.clearInvalidOnFetch === 'true',
+      geoipProxyUrl: settings.geoipProxyUrl || ''
     };
   }
 

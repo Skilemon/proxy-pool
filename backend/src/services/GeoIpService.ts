@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import https from 'https';
+import { SettingsService } from './SettingsService';
 
 const DB_FILE = process.env.GEOIP_DB_PATH || path.join(__dirname, '../../data/GeoLite2-Country.mmdb');
 const DB_DOWNLOAD_URL = 'https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-Country.mmdb';
@@ -9,7 +10,21 @@ const DB_DOWNLOAD_URL = 'https://github.com/P3TERX/GeoLite.mmdb/raw/download/Geo
 let reader: any = null;
 let loadAttempted = false;
 
-function downloadDatabase(): Promise<void> {
+async function getDownloadUrl(): Promise<string> {
+  try {
+    const settingsService = new SettingsService();
+    const proxyUrl = await settingsService.getSetting('geoipProxyUrl');
+    if (proxyUrl && proxyUrl.trim()) {
+      const base = proxyUrl.trim().replace(/\/$/, '');
+      return `${base}/${DB_DOWNLOAD_URL}`;
+    }
+  } catch {
+    // 读取配置失败时直连下载
+  }
+  return DB_DOWNLOAD_URL;
+}
+
+function downloadDatabase(downloadUrl: string): Promise<void> {
   return new Promise((resolve, reject) => {
     console.log('[GeoIP] 正在下载 GeoLite2-Country.mmdb...');
     const dir = path.dirname(DB_FILE);
@@ -50,7 +65,7 @@ function downloadDatabase(): Promise<void> {
       });
     };
 
-    request(DB_DOWNLOAD_URL);
+    request(downloadUrl);
   });
 }
 
@@ -60,7 +75,9 @@ async function getReader(): Promise<any> {
 
   if (!fs.existsSync(DB_FILE)) {
     try {
-      await downloadDatabase();
+      const downloadUrl = await getDownloadUrl();
+      console.log('[GeoIP] 下载地址:', downloadUrl);
+      await downloadDatabase(downloadUrl);
     } catch (err) {
       console.error('[GeoIP] 自动下载数据库失败，国家查询不可用:', err);
       return null;

@@ -29,6 +29,7 @@ export interface AppSettings {
   validationConcurrency: number;
   testUrl: string;
   clearInvalidOnFetch: boolean;
+  geoipProxyUrl?: string;
 }
 
 export interface ProtocolStats {
