@@ -14,6 +14,7 @@ import { SchedulerService } from './services/SchedulerService';
 import { SocksServerService } from './services/SocksServerService';
 import { SocksAccountService } from './services/SocksAccountService';
 import { createSocksAccountRoutes } from './routes/socksAccountRoutes';
+import { lookupCountry } from './services/GeoIpService';
 
 import { createProxyRoutes } from './routes/proxyRoutes';
 import { createSourceRoutes } from './routes/sourceRoutes';
@@ -174,6 +175,9 @@ async function startServer() {
     console.log('调度器启动完成');
 
     await socksServerService.start();
+
+    // 启动时预热 GeoIP 数据库，若文件不存在则自动下载
+    lookupCountry('8.8.8.8').catch(() => {});
 
     app.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);

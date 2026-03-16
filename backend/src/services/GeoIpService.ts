@@ -8,7 +8,7 @@ const DB_DOWNLOAD_URL = 'https://github.com/P3TERX/GeoLite.mmdb/raw/download/Geo
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let reader: any = null;
-let loadAttempted = false;
+let loadingPromise: Promise<any> | null = null;
 
 async function getDownloadUrl(): Promise<string> {
   try {
@@ -32,21 +32,21 @@ function downloadDatabase(downloadUrl: string): Promise<void> {
       fs.mkdirSync(dir, { recursive: true });
     }
     const tmpFile = DB_FILE + '.tmp';
-    const file = fs.createWriteStream(tmpFile);
 
     const request = (url: string) => {
       https.get(url, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
-          file.close();
+          res.resume();
           request(res.headers.location!);
           return;
         }
         if (res.statusCode !== 200) {
-          file.close();
+          res.resume();
           fs.unlink(tmpFile, () => {});
           reject(new Error(`下载失败，HTTP 状态码: ${res.statusCode}`));
           return;
         }
+        const file = fs.createWriteStream(tmpFile);
         res.pipe(file);
         file.on('finish', () => {
           file.close();
@@ -58,8 +58,11 @@ function downloadDatabase(downloadUrl: string): Promise<void> {
             }
           });
         });
+        file.on('error', (err) => {
+          fs.unlink(tmpFile, () => {});
+          reject(err);
+        });
       }).on('error', (err) => {
-        file.close();
         fs.unlink(tmpFile, () => {});
         reject(err);
       });
@@ -70,28 +73,34 @@ function downloadDatabase(downloadUrl: string): Promise<void> {
 }
 
 async function getReader(): Promise<any> {
-  if (loadAttempted) return reader;
-  loadAttempted = true;
+  if (reader) return reader;
+  if (loadingPromise) return loadingPromise;
 
-  if (!fs.existsSync(DB_FILE)) {
-    try {
-      const downloadUrl = await getDownloadUrl();
-      console.log('[GeoIP] 下载地址:', downloadUrl);
-      await downloadDatabase(downloadUrl);
-    } catch (err) {
-      console.error('[GeoIP] 自动下载数据库失败，国家查询不可用:', err);
-      return null;
+  loadingPromise = (async () => {
+    if (!fs.existsSync(DB_FILE)) {
+      try {
+        const downloadUrl = await getDownloadUrl();
+        console.log('[GeoIP] 下载地址:', downloadUrl);
+        await downloadDatabase(downloadUrl);
+      } catch (err) {
+        console.error('[GeoIP] 自动下载数据库失败，国家查询不可用:', err);
+        loadingPromise = null;
+        return null;
+      }
     }
-  }
 
-  try {
-    const { Reader } = await import('@maxmind/geoip2-node');
-    reader = await Reader.open(DB_FILE);
-    console.log('[GeoIP] GeoLite2 数据库已加载:', DB_FILE);
-  } catch (err) {
-    console.error('[GeoIP] 加载数据库失败:', err);
-  }
-  return reader;
+    try {
+      const { Reader } = await import('@maxmind/geoip2-node');
+      reader = await Reader.open(DB_FILE);
+      console.log('[GeoIP] GeoLite2 数据库已加载:', DB_FILE);
+    } catch (err) {
+      console.error('[GeoIP] 加载数据库失败:', err);
+      loadingPromise = null;
+    }
+    return reader;
+  })();
+
+  return loadingPromise;
 }
 
 /**
