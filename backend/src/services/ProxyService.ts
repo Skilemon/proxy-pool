@@ -88,8 +88,8 @@ export class ProxyService {
       conditions.push('responseTime IS NOT NULL AND responseTime <= ?');
       params.push(maxResponseTime);
     }
-    if (country === 'unknown') {
-      conditions.push('(country IS NULL OR country = \'\')' );
+    if (country === 'ZZ') {
+      conditions.push('(country IS NULL OR country = \'\' OR country = \'ZZ\')');
     } else if (country && country !== 'all') {
       conditions.push('country = ?');
       params.push(country);

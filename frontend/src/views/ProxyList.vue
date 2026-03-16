@@ -101,7 +101,6 @@
           <label class="text-sm text-slate-600 dark:text-slate-400">国家:</label>
           <select v-model="proxyStore.countryFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
             <option value="all">全部</option>
-            <option value="unknown">未知</option>
             <option v-for="c in proxyStore.availableCountries" :key="c" :value="c">{{ countryName(c) }}</option>
           </select>
         </div>
@@ -278,6 +277,7 @@ const countryCodeMap: Record<string, string> = {
   US: '美国', UY: '乌拉圭', UZ: '乌兹别克斯坦', VU: '瓦努阿图', VE: '委内瑞拉',
   VN: '越南', YE: '也门', ZM: '赞比亚', ZW: '津巴布韦', HK: '香港',
   MO: '澳门',
+  ZZ: '未知',
 };
 
 function countryName(code?: string): string {
