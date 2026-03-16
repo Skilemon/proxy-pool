@@ -68,9 +68,10 @@ export class ProxyService {
     protocol?: string;
     status?: 'valid' | 'invalid' | 'all';
     maxResponseTime?: number;
+    country?: string;
   }): Promise<{ data: ProxyEntry[]; total: number }> {
     const db = getDatabase();
-    const { page, pageSize, protocol, status, maxResponseTime } = options;
+    const { page, pageSize, protocol, status, maxResponseTime, country } = options;
     const conditions: string[] = [];
     const params: any[] = [];
 
@@ -86,6 +87,12 @@ export class ProxyService {
     if (maxResponseTime) {
       conditions.push('responseTime IS NOT NULL AND responseTime <= ?');
       params.push(maxResponseTime);
+    }
+    if (country === 'unknown') {
+      conditions.push('(country IS NULL OR country = \'\')' );
+    } else if (country && country !== 'all') {
+      conditions.push('country = ?');
+      params.push(country);
     }
 
     const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -187,6 +194,19 @@ export class ProxyService {
       'UPDATE proxies SET isValid = ?, lastChecked = ?, responseTime = ? WHERE id = ?',
       [isValid ? 1 : 0, lastChecked, responseTime || null, id]
     );
+  }
+
+  async updateProxyCountry(id: string, country: string): Promise<void> {
+    const db = getDatabase();
+    await db.run('UPDATE proxies SET country = ? WHERE id = ?', [country, id]);
+  }
+
+  async getCountries(): Promise<string[]> {
+    const db = getDatabase();
+    const rows = await db.all(
+      `SELECT DISTINCT country FROM proxies WHERE country IS NOT NULL AND country != '' ORDER BY country`
+    );
+    return rows.map(r => r.country as string);
   }
 
   async getStats(): Promise<StatsData> {

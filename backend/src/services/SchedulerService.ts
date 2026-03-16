@@ -3,6 +3,7 @@ import { ProxyService } from './ProxyService';
 import { ValidatorService } from './ValidatorService';
 import { FetcherService } from './FetcherService';
 import { SettingsService } from './SettingsService';
+import { lookupCountry } from './GeoIpService';
 
 export class SchedulerService {
   private proxyService: ProxyService;
@@ -120,7 +121,17 @@ export class SchedulerService {
       let validCount = 0;
       const onResult = async (result: Awaited<ReturnType<typeof this.validatorService.validateProxy>>) => {
         await this.proxyService.updateProxyValidation(result.proxyId, result.isValid, result.responseTime);
-        if (result.isValid) validCount++;
+        if (result.isValid) {
+          validCount++;
+          // 验证成功后补全国家信息（仅对 country 为空的代理）
+          const proxy = proxies.find(p => p.id === result.proxyId);
+          if (proxy && !proxy.country) {
+            const country = await lookupCountry(proxy.host);
+            if (country) {
+              await this.proxyService.updateProxyCountry(result.proxyId, country);
+            }
+          }
+        }
       };
 
       await this.validatorService.validateProxies(proxies, settings.validationConcurrency, onResult);

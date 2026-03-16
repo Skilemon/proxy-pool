@@ -4,6 +4,15 @@ import { ProxyService } from '../services/ProxyService';
 export function createProxyRoutes(proxyService: ProxyService): Router {
   const router = Router();
 
+  router.get('/countries', async (req, res, next) => {
+    try {
+      const countries = await proxyService.getCountries();
+      res.json({ success: true, data: countries });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get('/', async (req, res, next) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || '1')));
@@ -11,8 +20,9 @@ export function createProxyRoutes(proxyService: ProxyService): Router {
       const protocol = String(req.query.protocol || 'all');
       const status = String(req.query.status || 'all') as 'valid' | 'invalid' | 'all';
       const maxResponseTime = req.query.maxResponseTime ? parseInt(String(req.query.maxResponseTime)) : undefined;
+      const country = String(req.query.country || 'all');
 
-      const result = await proxyService.getProxiesPaged({ page, pageSize, protocol, status, maxResponseTime });
+      const result = await proxyService.getProxiesPaged({ page, pageSize, protocol, status, maxResponseTime, country });
       res.json({ success: true, data: result.data, total: result.total });
     } catch (error) {
       next(error);

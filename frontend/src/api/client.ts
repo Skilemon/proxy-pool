@@ -49,9 +49,15 @@ class ApiClient {
     protocol?: string;
     status?: string;
     maxResponseTime?: number;
+    country?: string;
   }): Promise<{ data: ProxyEntry[]; total: number }> {
     const { data } = await this.client.get<ApiResponse<ProxyEntry[]> & { total?: number }>('/proxies', { params });
     return { data: data.data || [], total: data.total ?? 0 };
+  }
+
+  async getProxyCountries(): Promise<string[]> {
+    const { data } = await this.client.get<ApiResponse<string[]>>('/proxies/countries');
+    return data.data || [];
   }
 
   async addProxy(proxy: Omit<ProxyEntry, 'id' | 'createdAt'>): Promise<ProxyEntry> {

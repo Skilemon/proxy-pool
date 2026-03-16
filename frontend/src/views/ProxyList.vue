@@ -97,6 +97,14 @@
             <option value="5000">5000ms 以内</option>
           </select>
         </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-slate-600 dark:text-slate-400">国家:</label>
+          <select v-model="proxyStore.countryFilter" class="px-3 py-2 border rounded-lg bg-white dark:bg-slate-700 dark:text-white">
+            <option value="all">全部</option>
+            <option value="unknown">未知</option>
+            <option v-for="c in proxyStore.availableCountries" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
         <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">
           共 {{ proxyStore.total }} 条
         </span>
@@ -415,5 +423,6 @@ function formatDate(dateString: string): string {
 
 onMounted(() => {
   proxyStore.fetchProxies();
+  proxyStore.fetchCountries();
 });
 </script>

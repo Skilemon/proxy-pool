@@ -15,6 +15,12 @@ export const useProxyStore = defineStore('proxy', () => {
   const protocolFilter = ref('all');
   const statusFilter = ref('all');
   const responseTimeFilter = ref('all');
+  const countryFilter = ref('all');
+  const availableCountries = ref<string[]>([]);
+
+  async function fetchCountries() {
+    availableCountries.value = await api.getProxyCountries();
+  }
 
   async function fetchProxies() {
     loading.value = true;
@@ -25,7 +31,8 @@ export const useProxyStore = defineStore('proxy', () => {
         pageSize: pageSize.value,
         protocol: protocolFilter.value,
         status: statusFilter.value,
-        maxResponseTime
+        maxResponseTime,
+        country: countryFilter.value
       });
       proxies.value = result.data;
       total.value = result.total;
@@ -93,7 +100,7 @@ export const useProxyStore = defineStore('proxy', () => {
   });
 
   // 筛选条件或每页条数变化时重置到第一页并重新拉取
-  watch([statusFilter, protocolFilter, responseTimeFilter, pageSize], () => {
+  watch([statusFilter, protocolFilter, responseTimeFilter, countryFilter, pageSize], () => {
     currentPage.value = 1;
     fetchProxies();
   });
@@ -113,9 +120,12 @@ export const useProxyStore = defineStore('proxy', () => {
     protocolFilter,
     statusFilter,
     responseTimeFilter,
+    countryFilter,
+    availableCountries,
     totalPages,
     visiblePages,
     fetchProxies,
+    fetchCountries,
     addProxy,
     deleteProxies,
     importProxies,
