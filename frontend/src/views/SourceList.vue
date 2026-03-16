@@ -178,8 +178,8 @@ async function toggleEnabled(source: ProxySource) {
 
 async function handleFetchOne(id: string) {
   try {
-    const result = await sourceStore.fetchFromSource(id);
-    appStore.showToast(`获取成功: 添加 ${result.added} 个，跳过 ${result.duplicates} 个重复`, 'success');
+    await sourceStore.fetchFromSource(id);
+    appStore.showToast('已开始在后台获取，稍后刷新页面查看结果', 'success');
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }
@@ -187,8 +187,8 @@ async function handleFetchOne(id: string) {
 
 async function handleFetchAll() {
   try {
-    const result = await sourceStore.fetchFromAllSources();
-    appStore.showToast(`获取完成: 从 ${result.total} 个来源添加 ${result.added} 个，跳过 ${result.duplicates} 个重复`, 'success');
+    await sourceStore.fetchFromAllSources();
+    appStore.showToast('已开始在后台获取全部来源，稍后刷新页面查看结果', 'success');
   } catch (error: any) {
     appStore.showToast(error.message, 'error');
   }

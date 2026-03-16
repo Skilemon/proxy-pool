@@ -42,13 +42,13 @@ export class FetcherService {
     let totalAdded = 0;
     let totalDuplicates = 0;
 
-    for (const source of sources) {
-      try {
-        const result = await this.fetchFromSource(source.id);
-        totalAdded += result.added;
-        totalDuplicates += result.duplicates;
-      } catch (error) {
-        console.error(`从来源 ${source.name} 获取失败:`, error);
+    const results = await Promise.allSettled(sources.map(s => this.fetchFromSource(s.id)));
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        totalAdded += r.value.added;
+        totalDuplicates += r.value.duplicates;
+      } else {
+        console.error('从某个来源获取失败:', r.reason);
       }
     }
 

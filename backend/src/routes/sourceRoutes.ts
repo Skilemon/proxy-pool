@@ -41,22 +41,18 @@ export function createSourceRoutes(sourceService: SourceService, fetcherService:
     }
   });
 
-  router.post('/:id/fetch', async (req, res, next) => {
-    try {
-      const result = await fetcherService.fetchFromSource(req.params.id);
-      res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
+  router.post('/:id/fetch', (req, res) => {
+    fetcherService.fetchFromSource(req.params.id).catch(err => {
+      console.error(`后台获取来源 ${req.params.id} 失败:`, err);
+    });
+    res.json({ success: true, data: { message: '已开始在后台获取' } });
   });
 
-  router.post('/fetch-all', async (req, res, next) => {
-    try {
-      const result = await fetcherService.fetchFromAllSources();
-      res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
+  router.post('/fetch-all', (_req, res) => {
+    fetcherService.fetchFromAllSources().catch(err => {
+      console.error('后台全量获取失败:', err);
+    });
+    res.json({ success: true, data: { message: '已开始在后台获取全部来源' } });
   });
 
   return router;
