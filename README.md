@@ -1,6 +1,6 @@
 # ProxyPool
 
-一个基于 Vue 3 + Express + SQLite 的代理池管理系统，支持代理的添加、验证、导入导出和自动获取。
+一个基于 Vue 3 + Express + SQLite 的代理池管理系统，支持代理的添加、验证、导入导出、自动获取，并内置 SOCKS5 代理服务器。
 
 ## 功能特性
 
@@ -8,7 +8,9 @@
 - 自动验证：定时验证代理可用性，支持 HTTP/HTTPS/SOCKS4/SOCKS5
 - 来源管理：从外部 URL 自动获取代理
 - 统计面板：实时查看代理统计信息
-- API 服务：提供 HTTP API 获取可用代理（无需认证）
+- API 服务：提供 HTTP API 获取可用代理（无需认证），支持按协议、延迟、国家筛选和批量获取
+- 内置 SOCKS5 服务器：将代理池封装为本地 SOCKS5 接口，支持账号认证、轮转/粘性模式和国家筛选
+- GeoIP 识别：自动检测并记录代理 IP 所属国家，支持按国家筛选代理
 - 身份验证：JWT 登录保护管理接口，默认密码 `admin`
 - 深色模式：支持浅色/深色主题切换
 - Docker 部署：多阶段构建，一键部署，数据持久化
@@ -29,6 +31,8 @@
 - node-cron（定时任务）
 - jsonwebtoken（JWT 认证）
 - axios + socks-proxy-agent（代理验证）
+- socks（内置 SOCKS5 服务器）
+- maxmind（GeoIP 国家识别）
 
 ## 快速开始
 
@@ -40,6 +44,7 @@
 docker run -d \
   --name proxypool \
   -p 8416:8416 \
+  -p 1080:1080 \
   -v $(pwd)/data:/app/data \
   --restart unless-stopped \
   ghcr.io/skilemon/proxypool:latest
@@ -58,6 +63,7 @@ docker-compose up -d
 # 3. 访问
 # 前端界面: http://localhost:8416
 # 获取代理: http://localhost:8416/getProxies
+# SOCKS5 服务: localhost:1080
 ```
 
 数据将持久化在宿主机 `./data/proxypool.db`。
@@ -104,30 +110,22 @@ ProxyPool/
 │   │   ├── views/           # 页面视图
 │   │   ├── stores/          # Pinia 状态
 │   │   ├── router/          # 路由配置
-│   │   └── types/           # TypeScript 类型
+│   │   └── types/           # 类型定义
 │   └── package.json
-├── backend/                  # Node.js 后端
+├── backend/                  # Express 后端
 │   ├── src/
-│   │   ├── controllers/     # 控制器
+│   │   ├── routes/          # 路由处理
 │   │   ├── services/        # 业务逻辑
-│   │   ├── routes/          # 路由
-│   │   ├── middleware/      # 中间件（认证、日志、错误处理）
+│   │   ├── middleware/      # 中间件
 │   │   ├── database/        # 数据库连接
-│   │   ├── utils/           # 工具函数
-│   │   └── app.ts           # 应用入口
+│   │   └── types/           # 类型定义
 │   └── package.json
-├── data/                     # 数据持久化目录（Docker 挂载点）
-│   └── proxypool.db         # SQLite 数据库
-├── .github/workflows/       # CI/CD（GitHub Actions 构建推送镜像）
-├── docker-compose.yml
 ├── Dockerfile
-└── README.md
+├── docker-compose.yml
+└── package.json
 ```
 
-## API 接口
-
-> 管理 API 需要在请求头中携带 JWT Token：`Authorization: Bearer <token>`
-> 登录接口和 `getProxies` 接口无需认证。
+## API 文档
 
 ### 认证
 
@@ -184,6 +182,15 @@ Token 有效期为 24 小时。
 | `GET` | `/api/settings` | 获取当前设置 |
 | `PUT` | `/api/settings` | 更新设置 |
 
+### SOCKS 账号管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/socks-accounts` | 获取所有 SOCKS 账号 |
+| `POST` | `/api/socks-accounts` | 创建 SOCKS 账号 |
+| `PUT` | `/api/socks-accounts/:id` | 更新 SOCKS 账号 |
+| `DELETE` | `/api/socks-accounts/:id` | 删除 SOCKS 账号 |
+
 ### 任务触发
 
 | 方法 | 路径 | 说明 |
@@ -197,57 +204,104 @@ Token 有效期为 24 小时。
 GET /getProxies
 ```
 
-从代理池中随机获取一条有效代理，支持按协议和响应延迟过滤。
+从代理池中获取有效代理，支持按协议、延迟、国家筛选，支持批量返回。
 
 **请求参数**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `protocol` | string | 否 | 协议类型：`http`、`https`、`socks4`、`socks5`，不传则不限 |
-| `delay` | number | 否 | 最大响应延迟（毫秒），仅返回不超过该值的代理 |
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `protocol` | string | 否 | - | 协议类型：`http`、`https`、`socks4`、`socks5`，不传则不限 |
+| `delay` | number | 否 | - | 最大响应延迟（毫秒），仅返回不超过该值的代理 |
+| `count` | number | 否 | `1` | 返回代理数量，范围 1~100 |
+| `country` | string | 否 | - | 国家代码（ISO 3166-1 alpha-2，如 `US`、`CN`） |
+| `countryMode` | string | 否 | `include` | 国家筛选模式：`include`（仅返回该国家）或 `exclude`（排除该国家） |
 
 **响应示例**
 
 ```json
 {
   "success": true,
-  "data": {
-    "proxy": "http://123.45.67.89:8080",
-    "protocol": "http",
-    "host": "123.45.67.89",
-    "port": 8080,
-    "responseTime": 234
-  }
+  "data": [
+    {
+      "proxy": "http://123.45.67.89:8080",
+      "protocol": "http",
+      "host": "123.45.67.89",
+      "port": 8080,
+      "responseTime": 234
+    }
+  ]
 }
 ```
 
 **调用示例**
 
 ```bash
-# 随机获取一条代理
+# 获取 1 条代理（默认）
 curl http://localhost:8416/getProxies
 
-# 获取 HTTP 协议代理
-curl http://localhost:8416/getProxies?protocol=http
+# 获取 5 条 HTTP 代理
+curl "http://localhost:8416/getProxies?protocol=http&count=5"
 
 # 获取延迟不超过 500ms 的 SOCKS5 代理
 curl "http://localhost:8416/getProxies?protocol=socks5&delay=500"
+
+# 获取美国代理
+curl "http://localhost:8416/getProxies?country=US"
+
+# 排除中国代理，取 3 条
+curl "http://localhost:8416/getProxies?country=CN&countryMode=exclude&count=3"
 ```
 
 ```python
 import requests
 
 resp = requests.get('http://localhost:8416/getProxies',
-                    params={'protocol': 'http', 'delay': 1000})
+                    params={'protocol': 'http', 'delay': 1000, 'count': 3})
 data = resp.json()
 if data['success']:
-    proxy_url = data['data']['proxy']
-    proxies = {'http': proxy_url, 'https': proxy_url}
-    r = requests.get('https://example.com', proxies=proxies)
-    print(r.status_code)
+    for item in data['data']:
+        proxy_url = item['proxy']
+        proxies = {'http': proxy_url, 'https': proxy_url}
+        r = requests.get('https://example.com', proxies=proxies)
+        print(r.status_code)
 ```
 
-> **速率限制**：所有 `/api` 接口每分钟最多请求 100 次。
+> **速率限制**：所有 `/api` 接口每分钟最多请求 120 次。
+
+## 内置 SOCKS5 服务器
+
+ProxyPool 内置了一个 SOCKS5 代理服务器，将代理池封装为本地 SOCKS5 接口，默认监听 `1080` 端口（可通过 `SOCKS_PORT` 环境变量修改）。
+
+### 账号配置
+
+通过 Web 界面的「SOCKS 账号」页面或 `/api/socks-accounts` API 创建账号，每个账号可配置：
+
+| 字段 | 说明 |
+|------|------|
+| `username` | 账号用户名 |
+| `password` | 账号密码 |
+| `mode` | 模式：`rotate`（每次连接随机选取代理）或 `sticky`（同一账号复用同一代理，超时后自动切换）|
+| `maxDelay` | 可选，最大响应延迟过滤（毫秒）|
+| `countryFilter` | 可选，国家代码（ISO 3166-1 alpha-2）|
+| `countryFilterMode` | 可选，`include` 或 `exclude`，默认 `include` |
+
+### 使用示例
+
+```bash
+# 通过 curl 使用 SOCKS5
+curl --socks5 localhost:1080 --proxy-user myuser:mypass https://example.com
+```
+
+```python
+import requests
+
+proxies = {
+    'http': 'socks5://myuser:mypass@localhost:1080',
+    'https': 'socks5://myuser:mypass@localhost:1080',
+}
+r = requests.get('https://example.com', proxies=proxies)
+print(r.status_code)
+```
 
 ## 环境变量
 
@@ -273,7 +327,10 @@ VALIDATION_TIMEOUT=5000
 VALIDATION_CONCURRENCY=10
 
 # 测试 URL（用于验证代理可用性）
-TEST_URL=https://cp.cloudflare.com/generate_204
+TEST_URL=http://www.apple.com/library/test/success.html
+
+# 内置 SOCKS5 服务器端口
+SOCKS_PORT=1080
 
 # JWT 密钥（生产环境请务必修改）
 JWT_SECRET=proxypool-secret-key
@@ -314,7 +371,9 @@ socks5://user:pass@123.45.67.89:1080
 - 获取间隔：多久从来源获取一次代理（默认 60 分钟）
 - 验证超时：单个代理验证超时时间（默认 5000ms）
 - 验证并发数：同时验证的代理数量（默认 10）
-- 测试 URL：用于验证代理可用性的目标地址
+- 测试 URL：用于验证代理可用性的目标地址（默认 `http://www.apple.com/library/test/success.html`）
+- 获取时清除无效代理：从来源获取新代理前自动删除无效代理（默认关闭）
+- GeoIP 下载代理：下载 GeoIP 数据库时使用的代理地址（可选）
 - 管理密码：修改登录密码
 
 ## Docker 部署
@@ -331,6 +390,7 @@ docker build -t proxypool:latest .
 docker run -d \
   --name proxypool \
   -p 8416:8416 \
+  -p 1080:1080 \
   -v $(pwd)/data:/app/data \
   -e VALIDATION_INTERVAL=30 \
   -e FETCH_INTERVAL=60 \
