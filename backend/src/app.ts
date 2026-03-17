@@ -66,28 +66,28 @@ app.get('/getProxies', async (req: Request, res: Response) => {
   try {
     const protocol = req.query.protocol as string | undefined;
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
+    const count = req.query.count ? Math.max(1, Math.min(100, Number(req.query.count))) : 1;
 
-    const proxy = await proxyService.getValidProxy(protocol, maxResponseTime);
+    const proxies = await proxyService.getValidProxy(protocol, maxResponseTime, count);
 
-    if (!proxy) {
+    if (proxies.length === 0) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
     }
 
-    const auth = proxy.username && proxy.password
-      ? `${proxy.username}:${proxy.password}@`
-      : '';
-    const proxyUrl = `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`;
-
-    res.json({
-      success: true,
-      data: {
-        proxy: proxyUrl,
+    const data = proxies.map(proxy => {
+      const auth = proxy.username && proxy.password
+        ? `${proxy.username}:${proxy.password}@`
+        : '';
+      return {
+        proxy: `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`,
         protocol: proxy.protocol,
         host: proxy.host,
         port: proxy.port,
         responseTime: proxy.responseTime
-      }
+      };
     });
+
+    res.json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
