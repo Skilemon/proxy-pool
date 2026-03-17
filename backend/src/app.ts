@@ -67,62 +67,25 @@ app.get('/getProxies', async (req: Request, res: Response) => {
     const protocol = req.query.protocol as string | undefined;
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
 
-    const settings = await settingsService.getSettings();
-    const candidates = await proxyService.getValidProxyCandidates(protocol, maxResponseTime, 5);
+    const proxy = await proxyService.getValidProxy(protocol, maxResponseTime);
 
-    if (candidates.length === 0) {
+    if (!proxy) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });
     }
 
-    // 若用户传入 delay，则以此作为校验超时；否则沿用全局设置
-    if (maxResponseTime !== undefined) {
-      validatorService.setTimeout(maxResponseTime);
-    }
-
-    // 沿用全局校验的并发数，逐结果更新数据库
-    const candidateMap = new Map(candidates.map(c => [c.id, c]));
-    const validationResults: { candidate: typeof candidates[0], result: Awaited<ReturnType<typeof validatorService.validateProxy>> }[] = [];
-
-    await validatorService.validateProxies(candidates, settings.validationConcurrency, async (result) => {
-      await proxyService.updateProxyValidation(result.proxyId, result.isValid, result.responseTime);
-      const candidate = candidateMap.get(result.proxyId)!;
-      validationResults.push({ candidate, result });
-    });
-
-    // 恢复全局超时设置
-    if (maxResponseTime !== undefined) {
-      validatorService.setTimeout(settings.validationTimeout);
-    }
-
-    // 从结果中筛出所有满足条件的，再随机返回一条
-    const qualifiedList = validationResults.filter(({ result }) => {
-      if (!result.isValid) return false;
-      if (maxResponseTime !== undefined && result.responseTime! > maxResponseTime) return false;
-      return true;
-    });
-
-    const matched = qualifiedList.length > 0
-      ? qualifiedList[Math.floor(Math.random() * qualifiedList.length)]
-      : null;
-
-    if (!matched) {
-      return res.status(404).json({ success: false, error: '没有满足条件的可用代理' });
-    }
-
-    const { candidate: selectedProxy, result: selectedResult } = matched;
-    const auth = selectedProxy.username && selectedProxy.password
-      ? `${selectedProxy.username}:${selectedProxy.password}@`
+    const auth = proxy.username && proxy.password
+      ? `${proxy.username}:${proxy.password}@`
       : '';
-    const proxyUrl = `${selectedProxy.protocol}://${auth}${selectedProxy.host}:${selectedProxy.port}`;
+    const proxyUrl = `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`;
 
     res.json({
       success: true,
       data: {
         proxy: proxyUrl,
-        protocol: selectedProxy.protocol,
-        host: selectedProxy.host,
-        port: selectedProxy.port,
-        responseTime: selectedResult.responseTime
+        protocol: proxy.protocol,
+        host: proxy.host,
+        port: proxy.port,
+        responseTime: proxy.responseTime
       }
     });
   } catch (error: any) {
