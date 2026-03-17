@@ -67,8 +67,10 @@ app.get('/getProxies', async (req: Request, res: Response) => {
     const protocol = req.query.protocol as string | undefined;
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;
     const count = req.query.count ? Math.max(1, Math.min(100, Number(req.query.count))) : 1;
+    const country = req.query.country ? String(req.query.country).toUpperCase() : undefined;
+    const countryMode = req.query.countryMode === 'exclude' ? 'exclude' : 'include';
 
-    const proxies = await proxyService.getValidProxy(protocol, maxResponseTime, count);
+    const proxies = await proxyService.getValidProxy(protocol, maxResponseTime, count, country, countryMode);
 
     if (proxies.length === 0) {
       return res.status(404).json({ success: false, error: '没有可用的代理' });

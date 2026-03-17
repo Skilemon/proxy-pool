@@ -118,7 +118,7 @@ export class ProxyService {
     return { ...row, isValid: Boolean(row.isValid) };
   }
 
-  async getValidProxy(protocol?: string, maxResponseTime?: number, count: number = 1): Promise<ProxyEntry[]> {
+  async getValidProxy(protocol?: string, maxResponseTime?: number, count: number = 1, country?: string, countryMode: 'include' | 'exclude' = 'include'): Promise<ProxyEntry[]> {
     const db = getDatabase();
     let query = 'SELECT * FROM proxies WHERE isValid = 1';
     const params: any[] = [];
@@ -131,6 +131,15 @@ export class ProxyService {
     if (maxResponseTime !== undefined) {
       query += ' AND responseTime <= ?';
       params.push(maxResponseTime);
+    }
+
+    if (country) {
+      if (countryMode === 'exclude') {
+        query += ' AND (country IS NULL OR country != ?)';
+      } else {
+        query += ' AND country = ?';
+      }
+      params.push(country);
     }
 
     query += ' ORDER BY RANDOM() LIMIT ?';
