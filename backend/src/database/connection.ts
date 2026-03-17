@@ -95,6 +95,9 @@ export async function initDatabase(): Promise<void> {
       password TEXT NOT NULL,
       mode TEXT NOT NULL DEFAULT 'rotate',
       enabled INTEGER DEFAULT 1,
+      maxDelay INTEGER,
+      countryFilter TEXT,
+      countryFilterMode TEXT DEFAULT 'include',
       createdAt TEXT NOT NULL
     );
 
@@ -102,32 +105,6 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_proxies_protocol ON proxies(protocol);
     CREATE INDEX IF NOT EXISTS idx_sources_enabled ON sources(enabled);
   `);
-
-  // 迁移：为旧数据库的 sources 表添加 isDefault 字段
-  try {
-    await database.exec(`ALTER TABLE sources ADD COLUMN isDefault INTEGER DEFAULT 0`);
-  } catch {
-    // 字段已存在，忽略
-  }
-
-  // 迁移：为旧数据库的 socks_accounts 表添加 maxDelay 字段
-  try {
-    await database.exec(`ALTER TABLE socks_accounts ADD COLUMN maxDelay INTEGER`);
-  } catch {
-    // 字段已存在，忽略
-  }
-
-  // 迁移：为旧数据库的 socks_accounts 表添加国家筛选字段
-  try {
-    await database.exec(`ALTER TABLE socks_accounts ADD COLUMN countryFilter TEXT`);
-  } catch {
-    // 字段已存在，忽略
-  }
-  try {
-    await database.exec(`ALTER TABLE socks_accounts ADD COLUMN countryFilterMode TEXT DEFAULT 'include'`);
-  } catch {
-    // 字段已存在，忽略
-  }
 
   await initDefaultSettings(database);
   await initDefaultSources(database);
