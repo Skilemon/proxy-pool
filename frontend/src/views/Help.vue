@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
       <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-1">使用帮助</h2>
-      <p class="text-slate-500 dark:text-slate-400 text-sm">以下是 <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">/api/getSingleProxy</code> 接口的使用说明</p>
+      <p class="text-slate-500 dark:text-slate-400 text-sm">以下是 <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">/getProxies</code> 接口的使用说明</p>
     </div>
 
     <!-- 接口说明 -->
@@ -11,7 +11,7 @@
       <div class="space-y-3 text-sm text-slate-700 dark:text-slate-300">
         <div class="flex items-center gap-3">
           <span class="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded font-mono font-bold text-xs">GET</span>
-          <code class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded font-mono">/api/getSingleProxy</code>
+          <code class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded font-mono">/getProxies</code>
         </div>
         <p class="text-slate-600 dark:text-slate-400">从代理池中随机获取一条有效代理，支持按协议类型和最大响应延迟过滤。</p>
       </div>
@@ -119,29 +119,29 @@
         <div>
           <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">随机获取一条代理</p>
           <div class="relative">
-            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /api/getSingleProxy</code></pre>
-            <button @click="copy('GET /api/getSingleProxy')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
+            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /getProxies</code></pre>
+            <button @click="copy('GET /getProxies')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">获取 HTTP 协议代理</p>
           <div class="relative">
-            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /api/getSingleProxy?protocol=http</code></pre>
-            <button @click="copy('GET /api/getSingleProxy?protocol=http')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
+            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /getProxies?protocol=http</code></pre>
+            <button @click="copy('GET /getProxies?protocol=http')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">获取延迟不超过 500ms 的 SOCKS5 代理</p>
           <div class="relative">
-            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /api/getSingleProxy?protocol=socks5&amp;delay=500</code></pre>
-            <button @click="copy('GET /api/getSingleProxy?protocol=socks5&delay=500')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
+            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>GET /getProxies?protocol=socks5&amp;delay=500</code></pre>
+            <button @click="copy('GET /getProxies?protocol=socks5&delay=500')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">curl 示例</p>
           <div class="relative">
-            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>curl "http://localhost:3000/api/getSingleProxy?protocol=http&delay=1000"</code></pre>
-            <button @click="copy('curl &quot;http://localhost:3000/api/getSingleProxy?protocol=http&delay=1000&quot;')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
+            <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>curl "http://localhost:3000/getProxies?protocol=http&delay=1000"</code></pre>
+            <button @click="copy('curl &quot;http://localhost:3000/getProxies?protocol=http&delay=1000&quot;')" class="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">复制</button>
           </div>
         </div>
         <div>
@@ -149,7 +149,7 @@
           <div class="relative">
             <pre class="bg-slate-900 text-slate-100 rounded-lg p-4 text-sm overflow-x-auto"><code>import requests
 
-resp = requests.get('http://localhost:3000/api/getSingleProxy', params={'protocol': 'http', 'delay': 1000})
+resp = requests.get('http://localhost:3000/getProxies', params={'protocol': 'http', 'delay': 1000})
 data = resp.json()
 if data['success']:
     proxy_url = data['data']['proxy']
@@ -173,7 +173,7 @@ function copy(text: string) {
 function copyPython() {
   const code = `import requests
 
-resp = requests.get('http://localhost:3000/api/getSingleProxy', params={'protocol': 'http', 'delay': 1000})
+resp = requests.get('http://localhost:3000/getProxies', params={'protocol': 'http', 'delay': 1000})
 data = resp.json()
 if data['success']:
     proxy_url = data['data']['proxy']

@@ -62,7 +62,7 @@ app.use('/api/stats', authMiddleware, createStatsRoutes(proxyService));
 app.use('/api/settings', authMiddleware, createSettingsRoutes(settingsService, schedulerService, validatorService));
 app.use('/api/socks-accounts', authMiddleware, createSocksAccountRoutes(socksAccountService));
 
-app.get('/api/getSingleProxy', async (req: Request, res: Response) => {
+app.get('/getProxies', async (req: Request, res: Response) => {
   try {
     const protocol = req.query.protocol as string | undefined;
     const maxResponseTime = req.query.delay ? Number(req.query.delay) : undefined;

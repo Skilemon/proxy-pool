@@ -57,7 +57,7 @@ docker-compose up -d
 
 # 3. 访问
 # 前端界面: http://localhost:8416
-# 获取代理: http://localhost:8416/api/getSingleProxy
+# 获取代理: http://localhost:8416/getProxies
 ```
 
 数据将持久化在宿主机 `./data/proxypool.db`。
@@ -127,7 +127,7 @@ ProxyPool/
 ## API 接口
 
 > 管理 API 需要在请求头中携带 JWT Token：`Authorization: Bearer <token>`
-> 登录接口和 `getSingleProxy` 接口无需认证。
+> 登录接口和 `getProxies` 接口无需认证。
 
 ### 认证
 
@@ -194,7 +194,7 @@ Token 有效期为 24 小时。
 ### 对外 API（无需认证）
 
 ```
-GET /api/getSingleProxy
+GET /getProxies
 ```
 
 从代理池中随机获取一条有效代理，支持按协议和响应延迟过滤。
@@ -225,19 +225,19 @@ GET /api/getSingleProxy
 
 ```bash
 # 随机获取一条代理
-curl http://localhost:8416/api/getSingleProxy
+curl http://localhost:8416/getProxies
 
 # 获取 HTTP 协议代理
-curl http://localhost:8416/api/getSingleProxy?protocol=http
+curl http://localhost:8416/getProxies?protocol=http
 
 # 获取延迟不超过 500ms 的 SOCKS5 代理
-curl "http://localhost:8416/api/getSingleProxy?protocol=socks5&delay=500"
+curl "http://localhost:8416/getProxies?protocol=socks5&delay=500"
 ```
 
 ```python
 import requests
 
-resp = requests.get('http://localhost:8416/api/getSingleProxy',
+resp = requests.get('http://localhost:8416/getProxies',
                     params={'protocol': 'http', 'delay': 1000})
 data = resp.json()
 if data['success']:
