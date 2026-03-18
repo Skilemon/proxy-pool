@@ -2,17 +2,15 @@
   "name": "proxy-pool",
   "version": "2.0.0",
   "private": true,
-  "description": "ProxyPool Vue + Express + SQLite",
+  "description": "ProxyPool Vue + Flask + SQLite",
   "workspaces": [
-    "frontend",
-    "backend"
+    "frontend"
   ],
   "scripts": {
-    "install:all": "npm install --workspace backend && npm install --workspace frontend",
     "dev:frontend": "npm run dev --workspace frontend",
-    "dev:backend": "npm run dev --workspace backend",
-    "build": "npm run build --workspace frontend && npm run build --workspace backend",
-    "start": "npm run start --workspace backend"
+    "build": "npm run build --workspace frontend",
+    "dev:backend": "cd backend && python app.py",
+    "start": "cd backend && python app.py"
   },
   "license": "MIT"
 }
