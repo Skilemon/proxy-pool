@@ -1,9 +1,59 @@
-node_modules
-dist
+# ============================================================
+# 通用
+# ============================================================
 .DS_Store
+Thumbs.db
 *.log
-.vscode
-.idea
-data
+*.log.*
+logs/
+old/
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 环境变量
 .env
-old
+.env.local
+.env.*.local
+
+# 前端 (Vue / Vite / Node.js)
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+frontend/.vite/
+
+# 类型检查缓存
+*.tsbuildinfo
+
+# 后端 (Python / Flask)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+backend/data/
