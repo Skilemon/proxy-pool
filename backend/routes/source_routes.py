@@ -47,25 +47,43 @@ def create_source_routes(source_service, fetcher_service):
     @bp.route('/<source_id>/fetch', methods=['POST'])
     @auth_middleware
     def fetch_from_source(source_id):
-        try:
-            import asyncio
+        import asyncio
+        import threading
+
+        def run():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(fetcher_service.fetch_from_source(source_id))
-            return jsonify({'success': True, 'data': {'message': '已开始在后台获取'}})
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
+            try:
+                loop.run_until_complete(fetcher_service.fetch_from_source(source_id))
+            except Exception as e:
+                print(f'[来源获取] 错误: {e}')
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=run)
+        thread.daemon = True
+        thread.start()
+        return jsonify({'success': True, 'data': {'message': '已开始在后台获取'}})
+
     @bp.route('/fetch-all', methods=['POST'])
     @auth_middleware
     def fetch_all_sources():
-        try:
-            import asyncio
+        import asyncio
+        import threading
+
+        def run():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(fetcher_service.fetch_from_all_sources())
-            return jsonify({'success': True, 'data': {'message': '已开始在后台获取全部来源'}})
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
+            try:
+                loop.run_until_complete(fetcher_service.fetch_from_all_sources())
+            except Exception as e:
+                print(f'[来源全部获取] 错误: {e}')
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=run)
+        thread.daemon = True
+        thread.start()
+        return jsonify({'success': True, 'data': {'message': '已开始在后台获取全部来源'}})
     
     return bp
