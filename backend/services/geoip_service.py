@@ -13,6 +13,10 @@ _loading = False
 
 async def lookup_country(ip: str) -> Optional[str]:
     """根据 IP 查询国家代码"""
+    return lookup_country_sync(ip)
+
+def lookup_country_sync(ip: str) -> Optional[str]:
+    """根据 IP 查询国家代码（同步版本）"""
     global _reader, _loading
     
     try:
@@ -21,12 +25,12 @@ async def lookup_country(ip: str) -> Optional[str]:
         if not _reader and not _loading:
             _loading = True
             if not os.path.exists(GEOIP_FILE):
-                await _download_database()
+                return None
             
             if os.path.exists(GEOIP_FILE):
                 try:
                     _reader = geoip2.database.Reader(GEOIP_FILE)
-                    print(f'[GeoIP] GeoLite2 数据库已加载：{GEOIP_FILE}')
+                    print(f'[GeoIP] GeoLite2-Country.mmdb 数据库已加载：{GEOIP_FILE}')
                 except Exception as e:
                     print(f'[GeoIP] 加载数据库失败：{e}')
                     _loading = False

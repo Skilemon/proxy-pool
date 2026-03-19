@@ -209,6 +209,11 @@ class ProxyService:
     async def update_proxy_validation(self, proxy_id: str, is_valid: bool,
                                      response_time: Optional[int] = None) -> None:
         """更新代理验证状态"""
+        self.update_proxy_validation_sync(proxy_id, is_valid, response_time)
+    
+    def update_proxy_validation_sync(self, proxy_id: str, is_valid: bool,
+                                     response_time: Optional[int] = None) -> None:
+        """更新代理验证状态（同步版本）"""
         last_checked = datetime.now().isoformat()
         
         with get_connection() as conn:
@@ -219,6 +224,10 @@ class ProxyService:
     
     async def update_proxy_country(self, proxy_id: str, country: str) -> None:
         """更新代理国家信息"""
+        self.update_proxy_country_sync(proxy_id, country)
+    
+    def update_proxy_country_sync(self, proxy_id: str, country: str) -> None:
+        """更新代理国家信息（同步版本）"""
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('UPDATE proxies SET country = ? WHERE id = ?', (country, proxy_id))

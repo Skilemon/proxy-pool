@@ -105,9 +105,9 @@ def create_app():
     @app.route('/api/validate', methods=['POST'])
     @auth_middleware
     def validate_proxies():
+        from flask import jsonify, request
         try:
             if scheduler_service.is_validating:
-                from flask import jsonify, request
                 return jsonify({'success': False, 'message': '验证任务已在运行中'})
             
             data = request.get_json() or {}
@@ -124,18 +124,16 @@ def create_app():
             thread.daemon = True
             thread.start()
             
-            from flask import jsonify
             return jsonify({'success': True, 'message': '验证任务已启动'})
         except Exception as e:
-            from flask import jsonify
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/fetch', methods=['POST'])
     @auth_middleware
     def fetch_proxies():
+        from flask import jsonify
         try:
             if scheduler_service.is_fetching:
-                from flask import jsonify
                 return jsonify({'success': False, 'message': '获取任务已在运行中'})
             
             scheduler_service.is_fetching = True
@@ -149,10 +147,8 @@ def create_app():
             thread.daemon = True
             thread.start()
             
-            from flask import jsonify
             return jsonify({'success': True, 'message': '获取任务已启动'})
         except Exception as e:
-            from flask import jsonify
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/', defaults={'path': ''})

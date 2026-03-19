@@ -90,7 +90,7 @@ class SchedulerService:
     async def run_validation(self, ids: Optional[list] = None):
         """运行验证任务"""
         try:
-            from services.geoip_service import lookup_country
+            from services.geoip_service import lookup_country_sync
             
             all_proxies = await self.proxy_service.get_all_proxies()
             proxies = all_proxies
@@ -106,26 +106,28 @@ class SchedulerService:
             self.validator_service.set_timeout(settings['validationTimeout'])
             
             valid_count = 0
+            lock = threading.Lock()
             
             def on_result(result):
                 nonlocal valid_count
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(
-                    self.proxy_service.update_proxy_validation(
-                        result['proxyId'], result['isValid'], result.get('responseTime')
+                proxy_id = result.get('proxyId', 'unknown')
+                try:
+                    self.proxy_service.update_proxy_validation_sync(
+                        proxy_id, result['isValid'], result.get('responseTime')
                     )
-                )
-                if result['isValid']:
-                    valid_count += 1
-                    proxy = next((p for p in proxies if p['id'] == result['proxyId']), None)
-                    if proxy and not proxy.get('country'):
-                        country = loop.run_until_complete(lookup_country(proxy['host']))
-                        if country:
-                            loop.run_until_complete(
-                                self.proxy_service.update_proxy_country(result['proxyId'], country)
-                            )
+                    
+                    if result['isValid']:
+                        with lock:
+                            valid_count += 1
+                        proxy = next((p for p in proxies if p['id'] == proxy_id), None)
+                        if proxy and not proxy.get('country'):
+                            country = lookup_country_sync(proxy['host'])
+                            if country:
+                                self.proxy_service.update_proxy_country_sync(proxy_id, country)
+                except Exception as e:
+                    import traceback
+                    print(f'更新代理验证结果失败 [proxyId={proxy_id}]: {type(e).__name__}: {e}')
+                    traceback.print_exc()
             
             self.validator_service.validate_proxies(
                 proxies, settings['validationConcurrency'], on_result
