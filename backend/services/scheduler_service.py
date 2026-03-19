@@ -29,6 +29,10 @@ class SchedulerService:
         self._schedule_validation(settings['validationInterval'])
         self._schedule_fetch(settings['fetchInterval'])
         
+        self._stop_event.clear()
+        self._scheduler_thread = threading.Thread(target=self.run_scheduler, daemon=True)
+        self._scheduler_thread.start()
+        
         print('调度器已启动')
     
     def stop(self):
