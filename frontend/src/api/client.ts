@@ -51,7 +51,7 @@ class ApiClient {
     maxResponseTime?: number;
     country?: string;
   }): Promise<{ data: ProxyEntry[]; total: number }> {
-    const { data } = await this.client.get<ApiResponse<ProxyEntry[]> & { total?: number }>('/proxies', { params });
+    const { data } = await this.client.get<ApiResponse<ProxyEntry[]> & { total?: number }>('/proxies/', { params });
     return { data: data.data || [], total: data.total ?? 0 };
   }
 
@@ -61,12 +61,12 @@ class ApiClient {
   }
 
   async addProxy(proxy: Omit<ProxyEntry, 'id' | 'createdAt'>): Promise<ProxyEntry> {
-    const { data } = await this.client.post<ApiResponse<ProxyEntry>>('/proxies', proxy);
+    const { data } = await this.client.post<ApiResponse<ProxyEntry>>('/proxies/', proxy);
     return data.data!;
   }
 
   async deleteProxies(ids: string[]): Promise<void> {
-    await this.client.delete('/proxies', { data: { ids } });
+    await this.client.delete('/proxies/', { data: { ids } });
   }
 
   async importProxies(content: string): Promise<{ added: number; duplicates: number }> {
@@ -81,12 +81,12 @@ class ApiClient {
   }
 
   async getSources(): Promise<ProxySource[]> {
-    const { data } = await this.client.get<ApiResponse<ProxySource[]>>('/sources');
+    const { data } = await this.client.get<ApiResponse<ProxySource[]>>('/sources/');
     return data.data || [];
   }
 
   async addSource(source: Omit<ProxySource, 'id' | 'createdAt'>): Promise<ProxySource> {
-    const { data } = await this.client.post<ApiResponse<ProxySource>>('/sources', source);
+    const { data } = await this.client.post<ApiResponse<ProxySource>>('/sources/', source);
     return data.data!;
   }
 
@@ -109,12 +109,12 @@ class ApiClient {
   }
 
   async getStats(): Promise<StatsData> {
-    const { data } = await this.client.get<ApiResponse<StatsData>>('/stats');
+    const { data } = await this.client.get<ApiResponse<StatsData>>('/stats/');
     return data.data!;
   }
 
   async getSettings(): Promise<AppSettings> {
-    const { data } = await this.client.get<ApiResponse<AppSettings>>('/settings');
+    const { data } = await this.client.get<ApiResponse<AppSettings>>('/settings/');
     return data.data!;
   }
 
@@ -124,7 +124,7 @@ class ApiClient {
   }
 
   async updateSettings(settings: Partial<AppSettings>): Promise<void> {
-    await this.client.put('/settings', settings);
+    await this.client.put('/settings/', settings);
   }
 
   async deleteInvalidProxies(): Promise<{ count: number }> {
@@ -141,7 +141,7 @@ class ApiClient {
   }
 
   async getSocksAccounts(): Promise<SocksAccount[]> {
-    const { data } = await this.client.get<ApiResponse<SocksAccount[]>>('/socks-accounts');
+    const { data } = await this.client.get<ApiResponse<SocksAccount[]>>('/socks-accounts/');
     return data.data || [];
   }
 
@@ -153,7 +153,7 @@ class ApiClient {
     countryFilter?: string;
     countryFilterMode?: 'include' | 'exclude';
   }): Promise<SocksAccount> {
-    const { data } = await this.client.post<ApiResponse<SocksAccount>>('/socks-accounts', account);
+    const { data } = await this.client.post<ApiResponse<SocksAccount>>('/socks-accounts/', account);
     return data.data!;
   }
 
