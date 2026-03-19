@@ -1,6 +1,4 @@
 import requests
-import socks
-import socket
 import time
 from typing import List, Dict, Any, Callable, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,49 +21,44 @@ class ValidatorService:
             is_socks = proxy['protocol'] in ['socks4', 'socks5']
             
             if is_socks:
-                proxy_addr = proxy['host']
-                proxy_port = proxy['port']
-                proxy_type = socks.SOCKS4 if proxy['protocol'] == 'socks4' else socks.SOCKS5
-                
-                s = socks.socksocket()
-                s.set_proxy(proxy_type, proxy_addr, proxy_port)
-                s.settimeout(self.timeout / 1000.0)
-                
+                auth = ''
                 if proxy.get('username') and proxy.get('password'):
-                    s.set_auth(proxy['username'], proxy['password'])
+                    auth = f"{proxy['username']}:{proxy['password']}@"
+                proxy_url = f"{proxy['protocol']}://{auth}{proxy['host']}:{proxy['port']}"
+                proxies = {
+                    'http': proxy_url,
+                    'https': proxy_url
+                }
             else:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(self.timeout / 1000.0)
+                proxy_url = format_proxy_url(proxy)
+                proxies = {
+                    'http': proxy_url,
+                    'https': proxy_url
+                }
             
-            try:
-                response = requests.get(
-                    self.test_url,
-                    proxies={
-                        'http': format_proxy_url(proxy),
-                        'https': format_proxy_url(proxy)
-                    } if not is_socks else None,
-                    timeout=self.timeout / 1000.0
-                )
+            response = requests.get(
+                self.test_url,
+                proxies=proxies,
+                timeout=self.timeout / 1000.0
+            )
+            
+            if response.status_code in [200, 204]:
+                response_time = int(time.time() * 1000 - start_time)
+                print(f'[验证] ✓ {format_proxy_url(proxy)} 有效 ({response_time}ms)')
                 
-                if response.status_code in [200, 204]:
-                    response_time = int(time.time() * 1000 - start_time)
-                    print(f'[验证] ✓ {format_proxy_url(proxy)} 有效 ({response_time}ms)')
-                    
-                    return {
-                        'proxyId': proxy['id'],
-                        'isValid': True,
-                        'responseTime': response_time,
-                        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
-                    }
-                else:
-                    print(f'[验证] ✗ {format_proxy_url(proxy)} 无效')
-                    return {
-                        'proxyId': proxy['id'],
-                        'isValid': False,
-                        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
-                    }
-            finally:
-                s.close()
+                return {
+                    'proxyId': proxy['id'],
+                    'isValid': True,
+                    'responseTime': response_time,
+                    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
+                }
+            else:
+                print(f'[验证] ✗ {format_proxy_url(proxy)} 无效')
+                return {
+                    'proxyId': proxy['id'],
+                    'isValid': False,
+                    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
+                }
                 
         except Exception as e:
             print(f'[验证] ✗ {format_proxy_url(proxy)} 无效')

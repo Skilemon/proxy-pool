@@ -62,7 +62,7 @@ def create_app():
     app.register_blueprint(create_socks_account_routes(socks_account_service), url_prefix='/api/socks-accounts')
     
     @app.route('/getProxies', methods=['GET'])
-    async def get_proxies():
+    def get_proxies():
         try:
             protocol = request.args.get('protocol')
             delay = request.args.get('delay', type=int)
@@ -70,9 +70,14 @@ def create_app():
             country = request.args.get('country')
             country_mode = 'exclude' if request.args.get('countryMode') == 'exclude' else 'include'
             
-            proxies = await proxy_service.get_valid_proxy(
-                protocol, delay, count, country, country_mode
-            )
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                proxies = loop.run_until_complete(proxy_service.get_valid_proxy(
+                    protocol, delay, count, country, country_mode
+                ))
+            finally:
+                loop.close()
             
             if not proxies:
                 from flask import jsonify

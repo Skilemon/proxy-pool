@@ -134,6 +134,34 @@ class SocksServerService:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
+        if account['mode'] == 'sticky' and username in self.sticky_map:
+            sticky_proxy = self.sticky_map[username]
+            tried.add(sticky_proxy['id'])
+            
+            try:
+                print(f'[SOCKS5] 用户={username} 模式=sticky(复用) '
+                      f'上游={sticky_proxy["protocol"]}://{sticky_proxy["host"]}:{sticky_proxy["port"]} '
+                      f'目标={dest_host}:{dest_port}')
+                
+                remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                remote.settimeout(timeout_ms / 1000.0)
+                
+                remote.connect((sticky_proxy['host'], sticky_proxy['port']))
+                
+                client_socket.sendall(bytes([0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+                
+                self._relay_data(client_socket, remote)
+                connected = True
+                return
+                
+            except Exception as e:
+                print(f'[SOCKS5] Sticky代理连接失败：{sticky_proxy["protocol"]}://{sticky_proxy["host"]}:{sticky_proxy["port"]} 错误={e}')
+                self.sticky_map.pop(username, None)
+                try:
+                    remote.close()
+                except:
+                    pass
+        
         while True:
             batch = await self.proxy_service.get_valid_proxy_candidates(
                 max_response_time=account.get('maxDelay'),

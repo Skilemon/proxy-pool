@@ -142,18 +142,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useAppStore } from '@/stores/appStore';
-
-interface SocksAccount {
-  id: string;
-  username: string;
-  password: string;
-  mode: 'rotate' | 'sticky';
-  enabled: boolean;
-  maxDelay?: number;
-  countryFilter?: string;
-  countryFilterMode?: 'include' | 'exclude';
-  createdAt: string;
-}
+import { api } from '@/api/client';
+import type { SocksAccount } from '@/types';
 
 const appStore = useAppStore();
 const accounts = ref<SocksAccount[]>([]);
@@ -209,12 +199,9 @@ const socksPort = import.meta.env.VITE_SOCKS_PORT || '1080';
 
 async function fetchAccounts() {
   try {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/socks-accounts', { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    if (data.success) accounts.value = data.data;
-  } catch {
-    appStore.showToast('加载账户失败', 'error');
+    accounts.value = await api.getSocksAccounts();
+  } catch (error: any) {
+    appStore.showToast(error.message || '加载账户失败', 'error');
   }
 }
 
@@ -223,99 +210,72 @@ async function handleCreate() {
     appStore.showToast('用户名和密码不能为空', 'error'); return;
   }
   try {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/socks-accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...form.value, countryFilter: form.value.countryFilter || undefined })
+    const newAccount = await api.createSocksAccount({
+      username: form.value.username,
+      password: form.value.password,
+      mode: form.value.mode,
+      maxDelay: form.value.maxDelay,
+      countryFilter: form.value.countryFilter || undefined,
+      countryFilterMode: form.value.countryFilterMode
     });
-    const data = await res.json();
-    if (data.success) {
-      accounts.value.unshift(data.data);
-      form.value = { username: '', password: '', mode: 'rotate', maxDelay: undefined, countryFilter: '', countryFilterMode: 'include' };
-      showForm.value = false;
-      appStore.showToast('账户创建成功', 'success');
-    } else {
-      appStore.showToast(data.error || '创建失败', 'error');
-    }
-  } catch {
-    appStore.showToast('创建失败', 'error');
+    accounts.value.unshift(newAccount);
+    form.value = { username: '', password: '', mode: 'rotate', maxDelay: undefined, countryFilter: '', countryFilterMode: 'include' };
+    showForm.value = false;
+    appStore.showToast('账户创建成功', 'success');
+  } catch (error: any) {
+    appStore.showToast(error.message || '创建失败', 'error');
   }
 }
 
 async function handleModeChange(acc: SocksAccount, mode: 'rotate' | 'sticky') {
   try {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/socks-accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ mode })
-    });
+    await api.updateSocksAccount(acc.id, { mode });
     acc.mode = mode;
     appStore.showToast('模式已更新', 'success');
-  } catch {
-    appStore.showToast('更新失败', 'error');
+  } catch (error: any) {
+    appStore.showToast(error.message || '更新失败', 'error');
   }
 }
 
 async function handleMaxDelayChange(acc: SocksAccount, value: string) {
   const maxDelay = value === '' ? undefined : Number(value);
   try {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/socks-accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ maxDelay: value === '' ? null : Number(value) })
-    });
+    await api.updateSocksAccount(acc.id, { maxDelay: value === '' ? null : Number(value) });
     acc.maxDelay = maxDelay;
     appStore.showToast('延迟要求已更新', 'success');
-  } catch {
-    appStore.showToast('更新失败', 'error');
+  } catch (error: any) {
+    appStore.showToast(error.message || '更新失败', 'error');
   }
 }
 
 async function handleCountryFilterChange(acc: SocksAccount, countryFilter: string, countryFilterMode: 'include' | 'exclude') {
   try {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/socks-accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ countryFilter: countryFilter.trim() || null, countryFilterMode })
-    });
+    await api.updateSocksAccount(acc.id, { countryFilter: countryFilter.trim() || null, countryFilterMode });
     acc.countryFilter = countryFilter.trim() || undefined;
     acc.countryFilterMode = countryFilterMode;
     appStore.showToast('国家筛选已更新', 'success');
-  } catch {
-    appStore.showToast('更新失败', 'error');
+  } catch (error: any) {
+    appStore.showToast(error.message || '更新失败', 'error');
   }
 }
 
 async function handleToggleEnabled(acc: SocksAccount) {
   try {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/socks-accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ enabled: !acc.enabled })
-    });
+    await api.updateSocksAccount(acc.id, { enabled: !acc.enabled });
     acc.enabled = !acc.enabled;
-  } catch {
-    appStore.showToast('更新失败', 'error');
+  } catch (error: any) {
+    appStore.showToast(error.message || '更新失败', 'error');
   }
 }
 
 async function handleDelete(id: string) {
   if (!confirm('确认删除该账户？')) return;
   try {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/socks-accounts/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await api.deleteSocksAccount(id);
     accounts.value = accounts.value.filter(a => a.id !== id);
     appStore.showToast('删除成功', 'success');
-  } catch {
-    appStore.showToast('删除失败', 'error');
+  } catch (error: any) {
+    appStore.showToast(error.message || '删除失败', 'error');
   }
 }
 

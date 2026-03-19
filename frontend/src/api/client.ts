@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, ProxyEntry, ProxySource, AppSettings, StatsData } from '@/types';
+import type { ApiResponse, ProxyEntry, ProxySource, AppSettings, StatsData, SocksAccount } from '@/types';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -138,6 +138,38 @@ class ApiClient {
 
   async fetchProxies(): Promise<void> {
     await this.client.post('/fetch');
+  }
+
+  async getSocksAccounts(): Promise<SocksAccount[]> {
+    const { data } = await this.client.get<ApiResponse<SocksAccount[]>>('/socks-accounts');
+    return data.data || [];
+  }
+
+  async createSocksAccount(account: {
+    username: string;
+    password: string;
+    mode: 'rotate' | 'sticky';
+    maxDelay?: number;
+    countryFilter?: string;
+    countryFilterMode?: 'include' | 'exclude';
+  }): Promise<SocksAccount> {
+    const { data } = await this.client.post<ApiResponse<SocksAccount>>('/socks-accounts', account);
+    return data.data!;
+  }
+
+  async updateSocksAccount(id: string, updates: Partial<{
+    password: string;
+    mode: 'rotate' | 'sticky';
+    enabled: boolean;
+    maxDelay: number | null;
+    countryFilter: string | null;
+    countryFilterMode: 'include' | 'exclude';
+  }>): Promise<void> {
+    await this.client.put(`/socks-accounts/${id}`, updates);
+  }
+
+  async deleteSocksAccount(id: string): Promise<void> {
+    await this.client.delete(`/socks-accounts/${id}`);
   }
 }
 
