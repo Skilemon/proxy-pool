@@ -43,7 +43,7 @@ class ValidatorService:
             )
             
             if response.status_code in [200, 204]:
-                response_time = int(time.time() * 1000 - start_time)
+                response_time = int(response.elapsed.total_seconds() * 1000)
                 print(f'[验证] ✓ {format_proxy_url(proxy)} 有效 ({response_time}ms)')
                 
                 return {
