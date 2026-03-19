@@ -1,11 +1,11 @@
 # Stage 1: 构建前端
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json* ./frontend/
-WORKDIR /app/frontend
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+RUN npm ci --workspace frontend
+COPY frontend/ ./frontend/
+RUN npm run build --workspace frontend
 
 # Stage 2: 生产环境
 FROM python:3.11-slim
