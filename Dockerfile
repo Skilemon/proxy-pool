@@ -1,33 +1,32 @@
-# Stage 1: 构建前端
-FROM node:22-alpine AS frontend-builder
+# ─── 阶段 1：构建前端 ───────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ─── 阶段 2：运行后端 ───────────────────────────────────────────────────────
+FROM python:3.12-slim
+
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY frontend/package.json ./frontend/
-RUN npm ci --workspace frontend
-COPY frontend/ ./frontend/
-RUN npm run build --workspace frontend
 
-# Stage 2: 生产环境
-FROM python:3.11-slim
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
+# 安装 Python 依赖
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 复制后端代码
 COPY backend/ ./
 
-COPY --from=frontend-builder /app/frontend/dist ./public
+# 将前端构建产物复制到 Flask 静态目录
+COPY --from=frontend-builder /frontend/dist ./public
 
-RUN mkdir -p /app/data
+# 数据持久化目录
+VOLUME ["/app/data"]
 
 EXPOSE 8416
 
-ENV NODE_ENV=production
 ENV PORT=8416
-ENV DB_PATH=/app/data/proxypool.db
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8416", "--workers", "1", "--threads", "4", "--timeout", "120", "wsgi:app"]

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   proxypool:
     build: .
@@ -7,20 +5,14 @@ services:
     ports:
       - "8416:8416"
     volumes:
-      - ./data:/app/data
+      - proxypool-data:/app/data
     environment:
-      - NODE_ENV=production
       - PORT=8416
+      - SOCKS_PORT=1080
       - DB_PATH=/app/data/proxypool.db
-      - VALIDATION_INTERVAL=30
-      - FETCH_INTERVAL=60
-      - VALIDATION_TIMEOUT=5000
-      - VALIDATION_CONCURRENCY=10
-      - TEST_URL=http://www.apple.com/library/test/success.html
+      - GEOIP_DB_PATH=/app/data/GeoLite2-Country.mmdb
+      - JWT_SECRET=change-me-in-production
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8416/getProxies"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+
+volumes:
+  proxypool-data:

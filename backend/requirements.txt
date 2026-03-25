@@ -7,3 +7,4 @@ PySocks==1.7.1
 schedule==1.2.0
 geoip2==4.8.0
 python-dotenv==1.0.0
+gunicorn==22.0.0
