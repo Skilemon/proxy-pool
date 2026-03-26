@@ -1,11 +1,12 @@
 # ─── 阶段 1：构建前端 ───────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend-builder
 
-WORKDIR /frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+RUN npm ci --workspace frontend
+COPY frontend/ ./frontend/
+RUN npm run build --workspace frontend
 
 # ─── 阶段 2：运行后端 ───────────────────────────────────────────────────────
 FROM python:3.12-slim
@@ -20,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 
 # 将前端构建产物复制到 Flask 静态目录
-COPY --from=frontend-builder /frontend/dist ./public
+COPY --from=frontend-builder /app/frontend/dist ./public
 
 # 数据持久化目录
 VOLUME ["/app/data"]
